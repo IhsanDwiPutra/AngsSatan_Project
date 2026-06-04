@@ -4,7 +4,6 @@ from core.score_manager import ScoreManager
 
 class GameManager:
     def __init__(self):
-        # STRUKTUR FSM V1.9.2: Rangkaian Intro Sinematik & Transisi Menu Universal
         # State: INTRO_STUDIO, INTRO_PRODUCER, INTRO_DISCLAIMER, MAIN_MENU, SETTINGS_MENU, CREDIT, MODE_SELECT, TUTORIAL, MEMORIZE, PLAY, GAME_OVER, CONFIRM
         self.current_state = 'INTRO_STUDIO'
         self.previous_state = 'INTRO_STUDIO'
@@ -29,13 +28,16 @@ class GameManager:
 
         # CONFIGURATION DURASI INTRO DINAMIS SINKRON
         self.intro_durations = {
-            'INTRO_STUDIO': 3000,      # 3 Detik Logo Studio
-            'INTRO_PRODUCER': 3000,    # 3 Detik Logo Kampus
-            'INTRO_DISCLAIMER': 8000   # 8 Detik Membaca Peringatan Medis
+            'INTRO_STUDIO': 3000,      
+            'INTRO_PRODUCER': 3000,    
+            'INTRO_DISCLAIMER': 8000   
         }
         
-        # Timer awal mengambil data durasi INTRO_STUDIO secara dinamis
         self.state_timer = self.intro_durations['INTRO_STUDIO']
+        
+        self.fade_alpha = 255 
+        self.fade_state = 'FADE_IN' 
+        self.fade_speed = 255 
 
         self.disclaimer_messages = [
             "PERINGATAN: GAME INI MENGANDUNG UNSUR HOROR",
@@ -45,15 +47,9 @@ class GameManager:
             "yang dapat memicu kejang bagi penderita epilepsi fotosensitif.",
             "",
             "Kebijaksanaan pemain sangat diharapkan. Jika Anda merasa",
-            "tidak nyaman, harap segera hentikan permainan.",
-            "",
-            "",
-            "",
-            "<Tekan Dimana Saja Untuk Skip!>"
+            "tidak nyaman, harap segera hentikan permainan."
         ]
 
-        # Data Tutorial Terstruktur Multiline (Mencegah Teks Keluar Kotak)
-        self.tutorial_step = 0
         self.tutorial_messages = [
             ["FASE 1: HAFALAN", "Ingat baik-baik urutan warna menara target", "yang muncul di layar dalam beberapa detik!"],
             ["FASE 2: EKSEKUSI", "Gunakan tombol warna / Klik Mouse untuk", "membangun kembali menara dari bawah ke atas."],
@@ -99,6 +95,20 @@ class GameManager:
         
         if self.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             self.state_timer -= delta_time
+            total_duration = self.intro_durations[self.current_state]
+            
+            if self.state_timer > total_duration - 1000:
+                self.fade_state = 'FADE_IN'
+                time_diff = total_duration - self.state_timer
+                self.fade_alpha = max(0, 255 - int((time_diff / 1000) * 255))
+            elif self.state_timer < 1000:
+                self.fade_state = 'FADE_OUT'
+                time_diff = 1000 - self.state_timer
+                self.fade_alpha = min(255, int((time_diff / 1000) * 255))
+            else:
+                self.fade_state = 'STAY'
+                self.fade_alpha = 0
+
             if self.state_timer <= 0:
                 self.skip_intro()
                 
@@ -113,7 +123,8 @@ class GameManager:
                     self.trigger_game_over()
 
     def skip_intro(self):
-        """Mekanisme lompat intro dinamis berdasarkan Dictionary Mapping."""
+        self.fade_alpha = 255
+        self.fade_state = 'FADE_IN'
         if self.current_state == 'INTRO_STUDIO':
             self.current_state = 'INTRO_PRODUCER'
             self.state_timer = self.intro_durations['INTRO_PRODUCER']
