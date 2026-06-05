@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+import random
 from settings import *
 from core.stack_logic import AbyssalStack
 from core.game_manager import GameManager
@@ -13,12 +14,13 @@ pygame.font.init()
 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
-pygame.display.set_caption("angSSatan v1.2")
+pygame.display.set_caption("angSSatan v1.2.5 - Dynamic Input Settings")
 clock = pygame.time.Clock()
 
 font_title = pygame.font.SysFont("Consolas", 42, bold=True)
 font_menu = pygame.font.SysFont("Consolas", 24)
 font_tut = pygame.font.SysFont("Consolas", 18)
+font_small = pygame.font.SysFont("Consolas", 14) 
 font_batin = pygame.font.SysFont("Consolas", 20, italic=True)
 
 def main():
@@ -57,7 +59,7 @@ def main():
             success_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "success.wav"))
         if os.path.exists(os.path.join("assets", "audio", "error.wav")):
             error_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "error.wav"))
-    except pygame.error: print("[AUDIO] Gagal memuat beberapa SFX In-Game.")
+    except pygame.error: pass
 
     def play_sfx(sound_obj):
         if sound_obj:
@@ -100,6 +102,36 @@ def main():
             menu_logo_image = pygame.transform.scale(menu_logo_image, (320, 120))
         except pygame.error: pass
 
+    img_mode_bg_path = os.path.join("assets", "sprites", "mode_bg.png")
+    if not os.path.exists(img_mode_bg_path): 
+        img_mode_bg_path = os.path.join("assets", "sprites", "mode_bg.jpg")
+    mode_bg_image = None
+    if os.path.exists(img_mode_bg_path):
+        try:
+            mode_bg_image = pygame.image.load(img_mode_bg_path).convert()
+            mode_bg_image = pygame.transform.scale(mode_bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except pygame.error: pass
+
+    img_settings_bg_path = os.path.join("assets", "sprites", "settings_bg.png")
+    if not os.path.exists(img_settings_bg_path): 
+        img_settings_bg_path = os.path.join("assets", "sprites", "settings_bg.jpg")
+    settings_bg_image = None
+    if os.path.exists(img_settings_bg_path):
+        try:
+            settings_bg_image = pygame.image.load(img_settings_bg_path).convert()
+            settings_bg_image = pygame.transform.scale(settings_bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except pygame.error: pass
+    
+    img_tutorial_bg_path = os.path.join("assets", "sprites", "tutorial_bg.png")
+    if not os.path.exists(img_tutorial_bg_path): 
+        img_tutorial_bg_path = os.path.join("assets", "sprites", "tutorial_bg.jpg")
+    tutorial_bg_image = None
+    if os.path.exists(img_tutorial_bg_path):
+        try:
+            tutorial_bg_image = pygame.image.load(img_tutorial_bg_path).convert()
+            tutorial_bg_image = pygame.transform.scale(tutorial_bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except pygame.error: pass
+
     video_frames_dir = os.path.join("assets", "video_frames")
     frame_files = []
     if os.path.exists(video_frames_dir):
@@ -109,6 +141,10 @@ def main():
     frame_duration = 40  
     cached_frame_img = None
     cached_frame_idx = -1
+    
+    # Variabel Pemuat Ruang Bermain (Loading Screen)
+    loading_timer = 0
+    current_hint = ""
 
     # ==========================================
     # INITIALIZATION INTERACTIVE BUTTONS
@@ -120,32 +156,38 @@ def main():
         Button(40, 430, 260, 50, "KELUAR", (40, 45, 60), (120, 40, 40), font_size=22)
     ]
 
-    btn_bgm_minus = Button(480, 200, 40, 35, "-", (50, 60, 80), (80, 100, 140))
-    btn_bgm_plus  = Button(540, 200, 40, 35, "+", (50, 60, 80), (80, 100, 140))
-    btn_sfx_minus = Button(480, 250, 40, 35, "-", (50, 60, 80), (80, 100, 140))
-    btn_sfx_plus  = Button(540, 250, 40, 35, "+", (50, 60, 80), (80, 100, 140))
-    btn_fs_toggle = Button(480, 300, 100, 35, "UBAH", (50, 60, 80), (80, 100, 140))
-    btn_settings_kembali = Button(SCREEN_WIDTH//2 - 150, 380, 300, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
-    btn_credit_kembali = Button(SCREEN_WIDTH//2 - 150, 480, 300, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
+    btn_bgm_slider = Button(350, 195, 180, 25, "", (0, 0, 0), (0, 0, 0)) 
+    btn_sfx_slider = Button(350, 255, 180, 25, "", (0, 0, 0), (0, 0, 0)) 
+    btn_fs_toggle  = Button(430, 310, 80, 35, "UBAH", (50, 60, 80), (80, 100, 140))
+    btn_settings_kembali = Button(SCREEN_WIDTH//2 - 120, 400, 240, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
+    btn_credit_kembali = Button(SCREEN_WIDTH//2 - 140, 490, 280, 50, "KEMBALI KE MENU", (40, 45, 60), (50, 50, 50), font_size=22)
 
     btn_modes = {
-        'EASY':       Button(SCREEN_WIDTH//2 - 160, 150, 320, 40, "EASY", (30, 40, 50), (50, 70, 90)),
-        'MEDIUM':     Button(SCREEN_WIDTH//2 - 160, 200, 320, 40, "MEDIUM", (30, 40, 50), (50, 70, 90)),
-        'HARD':       Button(SCREEN_WIDTH//2 - 160, 250, 320, 40, "HARD", (30, 40, 50), (50, 70, 90)),
-        'IMPOSSIBLE': Button(SCREEN_WIDTH//2 - 160, 300, 320, 40, "IMPOSSIBLE", (30, 40, 50), (50, 70, 90)),
-        'UNLIMITED':  Button(SCREEN_WIDTH//2 - 160, 350, 320, 40, "UNLIMITED", (30, 40, 50), (50, 70, 90)),
+        'EASY':       Button(40, 150, 420, 60, "", (40, 45, 60), (60, 70, 100)),
+        'MEDIUM':     Button(40, 220, 420, 60, "", (40, 45, 60), (60, 70, 100)),
+        'HARD':       Button(40, 290, 420, 60, "", (40, 45, 60), (60, 70, 100)),
+        'IMPOSSIBLE': Button(40, 360, 420, 60, "", (40, 45, 60), (60, 70, 100)),
+        'UNLIMITED':  Button(40, 430, 420, 60, "", (40, 45, 60), (60, 70, 100)),
     }
-    btn_mode_kembali  = Button(SCREEN_WIDTH//2 - 160, 420, 320, 40, "KEMBALI", (80, 80, 80), (50, 50, 50))
+    btn_mode_kembali  = Button(480, 430, 280, 60, "[ESC] KEMBALI", (40, 45, 60), (120, 40, 40), font_size=22)
 
     btn_game_merah    = Button(580, 120, 180, 40, "[R] MERAH", COLOR_RED, (150, 30, 30))
     btn_game_biru     = Button(580, 170, 180, 40, "[B] BIRU", COLOR_BLUE, (30, 60, 150))
     btn_game_kuning   = Button(580, 220, 180, 40, "[Y] KUNING", COLOR_YELLOW, (150, 140, 30))
     btn_game_hijau    = Button(580, 270, 180, 40, "[G] HIJAU", COLOR_GREEN, (30, 130, 30))
-    
     btn_game_pop      = Button(580, 330, 180, 40, "[BACK] POP", (100, 100, 100), (70, 70, 70))
     btn_game_validate = Button(580, 380, 180, 40, "[ENTER] VALIDASI", (40, 140, 70), (20, 90, 45))
     btn_game_menyerah = Button(580, 440, 180, 40, "[M] MENYERAH", (180, 40, 40), (120, 30, 30))
-    btn_game_keluar   = Button(580, 490, 180, 40, "[Q] MENU", (50, 50, 50), (30, 30, 30))
+    # Mengubah tombol [Q] MENU menjadi [ESC] JEDA sesuai instruksi
+    btn_game_jeda     = Button(580, 490, 180, 40, "[ESC] JEDA", (80, 60, 40), (120, 80, 50)) 
+
+    # Membangun 4 Tombol Menu Jeda
+    btn_pause_options = [
+        Button(SCREEN_WIDTH//2 - 140, 260, 280, 40, "LANJUTKAN", (40, 45, 60), (60, 70, 100)),
+        Button(SCREEN_WIDTH//2 - 140, 310, 280, 40, "ULANG LEVEL", (40, 45, 60), (60, 70, 100)),
+        Button(SCREEN_WIDTH//2 - 140, 360, 280, 40, "PENGATURAN", (40, 45, 60), (60, 70, 100)),
+        Button(SCREEN_WIDTH//2 - 140, 410, 280, 40, "KEMBALI KE MENU", (40, 45, 60), (120, 40, 40))
+    ]
 
     btn_confirm_ya    = Button(SCREEN_WIDTH//2 - 130, 320, 110, 40, "YA [Y]", (140, 40, 40), (190, 50, 50))
     btn_confirm_tidak = Button(SCREEN_WIDTH//2 + 20, 320, 110, 40, "TIDAK [N]", (70, 70, 70), (100, 100, 100))
@@ -156,11 +198,17 @@ def main():
         Button(SCREEN_WIDTH//2 - 150, 400, 300, 40, "KEMBALI KE MENU", (40, 45, 60), (120, 40, 40))
     ]
 
-    btn_tut_paham     = Button(SCREEN_WIDTH//2 - 130, 380, 110, 40, "PAHAM", (40, 120, 60), (50, 180, 80))
-    btn_tut_lewati    = Button(SCREEN_WIDTH//2 + 20, 380, 110, 40, "LEWATI", (100, 100, 100), (60, 60, 60))
+    btn_tut_kembali   = Button(SCREEN_WIDTH//2 - 160, 480, 140, 45, "[ESC] KEMBALI", (40, 45, 60), (150, 50, 50), font_size=18)
+    btn_tut_lanjut    = Button(SCREEN_WIDTH//2 + 20, 480, 140, 45, "[ENTER] LANJUT", (40, 45, 60), (60, 150, 80), font_size=18)
 
     fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     fade_surface.fill((0, 0, 0))
+
+    dragging_slider = None 
+    input_active = None    
+    input_text = ""
+    rect_bgm_input = pygame.Rect(545, 192, 50, 30) 
+    rect_sfx_input = pygame.Rect(545, 252, 50, 30) 
 
     is_running = True
 
@@ -169,11 +217,12 @@ def main():
         mouse_pos = pygame.mouse.get_pos() 
         
         # ==========================================
-        # BGM MUTE SAAT FASE KONFIRMASI
+        # BGM CONTROLLER
         # ==========================================
         if manager.current_state in ['MAIN_MENU', 'SETTINGS_MENU', 'CREDIT', 'MODE_SELECT', 'TUTORIAL']:
             target_bgm_state = 'MENU'
-        elif manager.current_state in ['PLAY', 'MEMORIZE', 'GAME_OVER']:
+        # Memasukkan PAUSE ke grup PLAY agar lagu horor tetap berputar saat game dijeda!
+        elif manager.current_state in ['PLAY', 'MEMORIZE', 'GAME_OVER', 'PAUSE']:
             target_bgm_state = 'PLAY'
         elif manager.current_state == 'CONFIRM':
             target_bgm_state = 'SILENT' 
@@ -204,7 +253,7 @@ def main():
             pygame.mixer.music.set_volume(manager.volume_bgm / 100)
         
         # ==========================================
-        # UPDATE ANIMASI FRAME VIDEO BACKGROUND LOOP
+        # VIDEO BG LOOP 
         # ==========================================
         if len(frame_files) > 0 and manager.current_state == 'MAIN_MENU':
             frame_timer += delta_time
@@ -224,13 +273,14 @@ def main():
         # ==========================================
         active_buttons = []
         if manager.current_state == 'MAIN_MENU': active_buttons = btn_menu_options
-        elif manager.current_state == 'SETTINGS_MENU': active_buttons = [btn_bgm_minus, btn_bgm_plus, btn_sfx_minus, btn_sfx_plus, btn_fs_toggle, btn_settings_kembali]
+        elif manager.current_state == 'SETTINGS_MENU': active_buttons = [btn_bgm_slider, btn_sfx_slider, btn_fs_toggle, btn_settings_kembali]
         elif manager.current_state == 'CREDIT': active_buttons = [btn_credit_kembali]
         elif manager.current_state == 'MODE_SELECT': active_buttons = list(btn_modes.values()) + [btn_mode_kembali]
-        elif manager.current_state == 'TUTORIAL': active_buttons = [btn_tut_paham, btn_tut_lewati]
-        elif manager.current_state == 'PLAY': active_buttons = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_keluar]
+        elif manager.current_state == 'TUTORIAL': active_buttons = [btn_tut_kembali, btn_tut_lanjut]
+        elif manager.current_state == 'PLAY': active_buttons = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]
         elif manager.current_state == 'CONFIRM': active_buttons = [btn_confirm_ya, btn_confirm_tidak]
         elif manager.current_state == 'GAME_OVER': active_buttons = btn_go_options
+        elif manager.current_state == 'PAUSE': active_buttons = btn_pause_options
 
         for btn in active_buttons:
             was_hovered = btn.is_hovered
@@ -244,26 +294,30 @@ def main():
             for idx, btn in enumerate(btn_menu_options):
                 if btn.is_hovered: manager.menu_index = idx  
         elif manager.current_state == 'SETTINGS_MENU':
-            for idx, btn in enumerate([btn_bgm_minus, btn_sfx_minus, btn_fs_toggle, btn_settings_kembali]):
+            for idx, btn in enumerate([btn_bgm_slider, btn_sfx_slider, btn_fs_toggle, btn_settings_kembali]):
                 if btn.is_hovered: manager.settings_index = idx
         elif manager.current_state == 'MODE_SELECT':
             for idx, btn in enumerate(list(btn_modes.values())):
                 if btn.is_hovered: manager.mode_index = idx
+            if btn_mode_kembali.is_hovered: manager.mode_index = len(manager.modes_list)
         elif manager.current_state == 'CONFIRM':
             if btn_confirm_ya.is_hovered: manager.confirm_index = 0
             elif btn_confirm_tidak.is_hovered: manager.confirm_index = 1
         elif manager.current_state == 'GAME_OVER':
             for idx, btn in enumerate(btn_go_options):
                 if btn.is_hovered: manager.game_over_index = idx 
+        elif manager.current_state == 'PAUSE':
+            for idx, btn in enumerate(btn_pause_options):
+                if btn.is_hovered: manager.pause_index = idx
 
         # ==========================================
-        # EVENT HANDLING (SINKRONISASI MOUSE + KEYBOARD)
+        # EVENT HANDLING (INPUT GANDA + SLIDER & TYPING v1.2.5)
         # ==========================================
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 is_running = False
                 
-            # --- INPUT KENDALI MOUSE CLICK ---
+            # --- EVENT: TETIKUS DITEKAN TAHAN ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
                     manager.skip_intro()
@@ -271,22 +325,41 @@ def main():
                 elif manager.current_state == 'MAIN_MENU':
                     clicked = False
                     if btn_menu_options[0].is_clicked(event, mouse_pos): manager.current_state = 'MODE_SELECT'; clicked = True
-                    elif btn_menu_options[1].is_clicked(event, mouse_pos): manager.current_state = 'SETTINGS_MENU'; clicked = True
+                    elif btn_menu_options[1].is_clicked(event, mouse_pos): manager.previous_state = manager.current_state; manager.current_state = 'SETTINGS_MENU'; clicked = True
                     elif btn_menu_options[2].is_clicked(event, mouse_pos): manager.current_state = 'CREDIT'; clicked = True
                     elif btn_menu_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_APP'); clicked = True
                     if clicked: play_click()
                     
                 elif manager.current_state == 'SETTINGS_MENU':
                     clicked = True
-                    if btn_bgm_minus.is_clicked(event, mouse_pos): manager.volume_bgm = max(0, manager.volume_bgm - 10)
-                    elif btn_bgm_plus.is_clicked(event, mouse_pos):  manager.volume_bgm = min(100, manager.volume_bgm + 10)
-                    elif btn_sfx_minus.is_clicked(event, mouse_pos): manager.volume_sfx = max(0, manager.volume_sfx - 10)
-                    elif btn_sfx_plus.is_clicked(event, mouse_pos):  manager.volume_sfx = min(100, manager.volume_sfx + 10)
-                    elif btn_fs_toggle.is_clicked(event, mouse_pos):
-                        manager.is_fullscreen = not manager.is_fullscreen
-                        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), (pygame.FULLSCREEN | pygame.SCALED) if manager.is_fullscreen else pygame.SCALED)
-                    elif btn_settings_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'
-                    else: clicked = False
+                    # Logika Fokus Ketik Angka
+                    if rect_bgm_input.collidepoint(mouse_pos):
+                        input_active = 'BGM'
+                        input_text = str(manager.volume_bgm)
+                    elif rect_sfx_input.collidepoint(mouse_pos):
+                        input_active = 'SFX'
+                        input_text = str(manager.volume_sfx)
+                    else:
+                        # Jika klik di luar kotak, simpan nilai yang sudah diketik
+                        if input_active:
+                            if input_active == 'BGM': manager.volume_bgm = max(0, min(100, int(input_text) if input_text else 0))
+                            elif input_active == 'SFX': manager.volume_sfx = max(0, min(100, int(input_text) if input_text else 0))
+                            input_active = None
+
+                        # Logika Tarik Slider Mouse Down
+                        if btn_bgm_slider.rect.collidepoint(mouse_pos):
+                            dragging_slider = 'BGM'
+                            rel_x = mouse_pos[0] - btn_bgm_slider.rect.x
+                            manager.volume_bgm = max(0, min(100, int((rel_x / btn_bgm_slider.rect.width) * 100)))
+                        elif btn_sfx_slider.rect.collidepoint(mouse_pos):
+                            dragging_slider = 'SFX'
+                            rel_x = mouse_pos[0] - btn_sfx_slider.rect.x
+                            manager.volume_sfx = max(0, min(100, int((rel_x / btn_sfx_slider.rect.width) * 100)))
+                        elif btn_fs_toggle.is_clicked(event, mouse_pos):
+                            manager.is_fullscreen = not manager.is_fullscreen
+                            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), (pygame.FULLSCREEN | pygame.SCALED) if manager.is_fullscreen else pygame.SCALED)
+                        elif btn_settings_kembali.is_clicked(event, mouse_pos): manager.current_state = manager.previous_state
+                        else: clicked = False
                     if clicked: play_click()
                     
                 elif manager.current_state == 'CREDIT':
@@ -307,12 +380,20 @@ def main():
                     if clicked: play_click()
                             
                 elif manager.current_state == 'TUTORIAL':
-                    clicked = True
-                    if btn_tut_paham.is_clicked(event, mouse_pos):
-                        manager.tutorial_step += 1
-                        if manager.tutorial_step >= len(manager.tutorial_messages): manager.current_state = 'MEMORIZE'
-                    elif btn_tut_lewati.is_clicked(event, mouse_pos): manager.current_state = 'MEMORIZE'
-                    else: clicked = False
+                    clicked = False
+                    if btn_tut_kembali.is_clicked(event, mouse_pos): 
+                        manager.current_state = 'MODE_SELECT'
+                        clicked = True
+                    elif btn_tut_lanjut.is_clicked(event, mouse_pos): 
+                        # Lempar ke Layar Loading terlebih dahulu!
+                        manager.current_state = 'LOADING'
+                        loading_timer = 0
+                        current_hint = random.choice([
+                            "PETUNJUK: Suara kecil sering lebih menyeramkan dari suara keras.", 
+                            "PETUNJUK: Balok terakhir masuk adalah yang pertama keluar (LIFO).", 
+                            "PETUNJUK: Jangan biarkan monster menembus batas kewarasanmu."
+                        ])
+                        clicked = True
                     if clicked: play_click()
                     
                 elif manager.current_state == 'PLAY':
@@ -322,7 +403,7 @@ def main():
                     elif btn_game_hijau.is_clicked(event, mouse_pos):   player_stack.push("Hijau"); play_push()
                     elif btn_game_pop.is_clicked(event, mouse_pos):     player_stack.pop(); play_pop()
                     elif btn_game_menyerah.is_clicked(event, mouse_pos): manager.trigger_confirm('MENYERAH'); play_click()
-                    elif btn_game_keluar.is_clicked(event, mouse_pos):   manager.trigger_confirm('KELUAR_MENU'); play_click()
+                    elif btn_game_jeda.is_clicked(event, mouse_pos):     manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
                     elif btn_game_validate.is_clicked(event, mouse_pos):
                         player_stack.target_blueprint = manager.target_blueprint
                         if player_stack.check_match():
@@ -361,55 +442,97 @@ def main():
                     else: clicked = False
                     if clicked: play_click()
 
+            # --- EVENT: TETIKUS DILEPAS (STOP DRAGGING) ---
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                dragging_slider = None
+
+            # --- EVENT: TETIKUS BERGESER (DRAGGING FLUIDA) ---
+            elif event.type == pygame.MOUSEMOTION:
+                if manager.current_state == 'SETTINGS_MENU':
+                    if dragging_slider == 'BGM':
+                        rel_x = mouse_pos[0] - btn_bgm_slider.rect.x
+                        manager.volume_bgm = max(0, min(100, int((rel_x / btn_bgm_slider.rect.width) * 100)))
+                    elif dragging_slider == 'SFX':
+                        rel_x = mouse_pos[0] - btn_sfx_slider.rect.x
+                        manager.volume_sfx = max(0, min(100, int((rel_x / btn_sfx_slider.rect.width) * 100)))
+
             # --- INPUT KENDALI KEYBOARD ---
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE: is_running = False
-                
                 if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
-                    if event.key in [pygame.K_RETURN, pygame.K_SPACE]: manager.skip_intro()
+                    if event.key in [pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE]: manager.skip_intro()
                 
                 elif manager.current_state == 'MAIN_MENU':
-                    if event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options); play_hover()
+                    if event.key == pygame.K_ESCAPE: is_running = False
+                    elif event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_UP:   manager.menu_index = (manager.menu_index - 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_RETURN:
                         play_click()
                         if manager.menu_index == 0:   manager.current_state = 'MODE_SELECT'
-                        elif manager.menu_index == 1: manager.current_state = 'SETTINGS_MENU'
+                        elif manager.menu_index == 1: manager.previous_state = manager.current_state; manager.current_state = 'SETTINGS_MENU'
                         elif manager.menu_index == 2: manager.current_state = 'CREDIT'
                         elif manager.menu_index == 3: manager.trigger_confirm('KELUAR_APP')
                 
                 elif manager.current_state == 'SETTINGS_MENU':
-                    if event.key == pygame.K_DOWN:   manager.settings_index = (manager.settings_index + 1) % len(manager.settings_options); play_hover()
-                    elif event.key == pygame.K_UP:   manager.settings_index = (manager.settings_index - 1) % len(manager.settings_options); play_hover()
-                    elif event.key == pygame.K_RIGHT:
-                        play_click()
-                        if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 10)
-                        elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 10)
-                        elif manager.settings_index == 2: 
-                            manager.is_fullscreen = True
-                            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
-                    elif event.key == pygame.K_LEFT:
-                        play_click()
-                        if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 10)
-                        elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 10)
-                        elif manager.settings_index == 2: 
-                            manager.is_fullscreen = False
-                            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
-                    elif event.key == pygame.K_RETURN and manager.settings_index == 3:
-                        play_click(); manager.current_state = 'MAIN_MENU'
+                    # Logika Pemrosesan Angka Input Langsung
+                    if input_active:
+                        if event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
+                            play_click()
+                            if input_active == 'BGM': manager.volume_bgm = max(0, min(100, int(input_text) if input_text else 0))
+                            elif input_active == 'SFX': manager.volume_sfx = max(0, min(100, int(input_text) if input_text else 0))
+                            input_active = None
+                        elif event.key == pygame.K_BACKSPACE:
+                            input_text = input_text[:-1]
+                            play_click()
+                        elif event.unicode.isdigit():
+                            if len(input_text) < 3 or (len(input_text) == 3 and input_text == "100"): 
+                                input_text += event.unicode
+                                play_click()
+                    else:
+                        # Logika Keyboard Normal
+                        if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = 'MAIN_MENU'
+                        elif event.key == pygame.K_DOWN:   manager.settings_index = (manager.settings_index + 1) % len(manager.settings_options); play_hover()
+                        elif event.key == pygame.K_UP:   manager.settings_index = (manager.settings_index - 1) % len(manager.settings_options); play_hover()
+                        elif event.key == pygame.K_RIGHT:
+                            play_click()
+                            if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 5) # Slider presisi +5%
+                            elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 5)
+                            elif manager.settings_index == 2: 
+                                manager.is_fullscreen = True
+                                screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
+                        elif event.key == pygame.K_LEFT:
+                            play_click()
+                            if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 5) # Slider presisi -5%
+                            elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 5)
+                            elif manager.settings_index == 2: 
+                                manager.is_fullscreen = False
+                                screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
+                        elif event.key == pygame.K_RETURN:
+                            play_click()
+                            if manager.settings_index == 2:
+                                manager.is_fullscreen = not manager.is_fullscreen
+                                screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED) if manager.is_fullscreen else pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
+                            elif manager.settings_index == 3: manager.current_state = manager.previous_state
                 
                 elif manager.current_state in ['CREDIT']:
-                    if event.key == pygame.K_RETURN: play_click(); manager.current_state = 'MAIN_MENU'
+                    if event.key in [pygame.K_RETURN, pygame.K_ESCAPE]: play_click(); manager.current_state = 'MAIN_MENU'
                 
                 elif manager.current_state == 'TUTORIAL':
-                    if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                    if event.key == pygame.K_ESCAPE: 
                         play_click()
-                        manager.tutorial_step += 1
-                        if manager.tutorial_step >= len(manager.tutorial_messages): manager.current_state = 'MEMORIZE'
-                    elif event.key == pygame.K_ESCAPE: manager.current_state = 'MEMORIZE'
+                        manager.current_state = 'MODE_SELECT'
+                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE]: 
+                        play_click()
+                        manager.current_state = 'LOADING'
+                        loading_timer = 0
+                        current_hint = random.choice([
+                            "PETUNJUK: Suara kecil sering lebih menyeramkan dari suara keras.", 
+                            "PETUNJUK: Balok terakhir masuk adalah yang pertama keluar (LIFO).", 
+                            "PETUNJUK: Jangan biarkan monster menembus batas kewarasanmu."
+                        ])
                 
                 elif manager.current_state == 'MODE_SELECT':
-                    if event.key == pygame.K_DOWN:   manager.mode_index = (manager.mode_index + 1) % (len(manager.modes_list) + 1); play_hover()
+                    if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = 'MAIN_MENU'
+                    elif event.key == pygame.K_DOWN:   manager.mode_index = (manager.mode_index + 1) % (len(manager.modes_list) + 1); play_hover()
                     elif event.key == pygame.K_UP:   manager.mode_index = (manager.mode_index - 1) % (len(manager.modes_list) + 1); play_hover()
                     elif event.key == pygame.K_RETURN:
                         play_click()
@@ -425,7 +548,8 @@ def main():
                                 manager.tutorial_step = 0
                 
                 elif manager.current_state == 'PLAY':
-                    if event.key == pygame.K_r: player_stack.push("Merah"); play_push()
+                    if event.key == pygame.K_ESCAPE: manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
+                    elif event.key == pygame.K_r: player_stack.push("Merah"); play_push()
                     elif event.key == pygame.K_b: player_stack.push("Biru"); play_push()
                     elif event.key == pygame.K_y: player_stack.push("Kuning"); play_push()
                     elif event.key == pygame.K_g: player_stack.push("Hijau"); play_push()
@@ -443,7 +567,8 @@ def main():
                             play_error()
                 
                 elif manager.current_state == 'CONFIRM':
-                    if event.key == pygame.K_LEFT: manager.confirm_index = 0; play_hover()
+                    if event.key == pygame.K_ESCAPE: play_click(); manager.cancel_confirm()
+                    elif event.key == pygame.K_LEFT: manager.confirm_index = 0; play_hover()
                     elif event.key == pygame.K_RIGHT: manager.confirm_index = 1; play_hover()
                     elif event.key == pygame.K_y or (event.key == pygame.K_RETURN and manager.confirm_index == 0):
                         play_click()
@@ -454,7 +579,7 @@ def main():
                             player_stack.clear_stack() 
                         elif manager.confirm_type == 'KELUAR_APP': 
                             is_running = False
-                    elif event.key == pygame.K_n or event.key == pygame.K_ESCAPE or (event.key == pygame.K_RETURN and manager.confirm_index == 1):
+                    elif event.key == pygame.K_n or (event.key == pygame.K_RETURN and manager.confirm_index == 1):
                         play_click(); manager.cancel_confirm()
                 
                 elif manager.current_state == 'GAME_OVER':
@@ -473,21 +598,51 @@ def main():
                             player_stack.clear_stack() 
 
         # ---- 3. LOGIKA UPDATE ----
-        manager.update_timer(delta_time)
+        # Cegat logika waktu GameManager dan buat simulasi pemuatan memori 3 Detik!
+        if manager.current_state == 'LOADING':
+            loading_timer += delta_time
+            if loading_timer >= 3000: # 3000 milidetik = 3 Detik Loading
+                manager.current_state = 'MEMORIZE'
+                loading_timer = 0
+        else:
+            manager.update_timer(delta_time)
+            
         if manager.current_state == 'PLAY':
             monster.update(manager.state_timer, manager.play_duration)
         elif manager.current_state == 'MEMORIZE':
             monster.current_x = monster.start_x
 
-        # ---- 4. RENDER VISUAL V1.2 ----
+        # ---- 4. RENDER VISUAL (FIX ISOLASI BACKGROUND) ----
         if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             screen.fill((0, 0, 0)) 
         elif manager.current_state == 'MAIN_MENU':
-            if cached_frame_img:
-                screen.blit(cached_frame_img, (0, 0))
+            if cached_frame_img: screen.blit(cached_frame_img, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE) 
+        elif manager.current_state == 'MODE_SELECT':
+            if mode_bg_image: screen.blit(mode_bg_image, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE)
+        elif manager.current_state == 'SETTINGS_MENU':
+            if settings_bg_image: screen.blit(settings_bg_image, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE)
+        elif manager.current_state == 'TUTORIAL':
+            if tutorial_bg_image:
+                screen.blit(tutorial_bg_image, (0, 0))
+            elif mode_bg_image: # Fallback pakai bg mode jika bg tutorial kosong
+                screen.blit(mode_bg_image, (0, 0))
             else:
-                screen.fill(COLOR_BG_SAFE) 
-        elif manager.current_state == 'PLAY' and manager.state_timer < 15000:
+                screen.fill(COLOR_BG_SAFE)
+        elif manager.current_state == 'LOADING':
+            # Ambil sisa background dari tutorial atau mode agar transisinya mulus
+            if tutorial_bg_image: screen.blit(tutorial_bg_image, (0, 0))
+            elif mode_bg_image: screen.blit(mode_bg_image, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE)
+            
+        elif manager.current_state == 'CREDIT':
+            # Jika Anda nanti punya file credit_bg.png, bisa dimasukkan ke pipeline seperti mode_bg
+            # Untuk sekarang kita set Fallback murni
+            if mode_bg_image: screen.blit(mode_bg_image, (0, 0)) # Fallback sementara pakai BG Mode
+            else: screen.fill(COLOR_BG_SAFE)
+        elif manager.current_state in ['PLAY', 'PAUSE', 'GAME_OVER'] and manager.state_timer < 15000:
             screen.fill(COLOR_BG_DANGER)
         else:
             screen.fill(COLOR_BG_SAFE)
@@ -532,75 +687,326 @@ def main():
                 if idx == manager.menu_index: btn.current_color = (60, 70, 100)
                 btn.draw(screen)
 
-            # ==========================================
-            # CELAH TERPENUHI: MERENDER WATERMARK VERSI GAME (KANAN BAWAH)
-            # ==========================================
-            # Menggunakan font_tut (Consolas 18) berwarna abu-abu redup agar estetis dan tidak mendistrak menu utama
-            version_text = font_tut.render("angSSatan v1.2.0", True, (130, 130, 140))
-            # Menghitung koordinat sudut kanan bawah dengan padding aman 15 piksel dari tepi
+            version_text = font_tut.render("angSSatan v1.2.5", True, (130, 130, 140))
             version_x = SCREEN_WIDTH - version_text.get_width() - 15
             version_y = SCREEN_HEIGHT - version_text.get_height() - 15
             screen.blit(version_text, (version_x, version_y))
 
         elif manager.current_state == 'SETTINGS_MENU':
-            title_set = font_title.render("PENGATURAN", True, COLOR_YELLOW)
-            screen.blit(title_set, (SCREEN_WIDTH//2 - title_set.get_width()//2, 80))
-            txt_bgm = font_menu.render(f"BGM VOLUME: {manager.volume_bgm}%", True, COLOR_WHITE if manager.settings_index == 0 else (150, 150, 150))
-            txt_sfx = font_menu.render(f"SFX VOLUME: {manager.volume_sfx}%", True, COLOR_WHITE if manager.settings_index == 1 else (150, 150, 150))
-            txt_fs  = font_menu.render(f"FULLSCREEN: {'ON' if manager.is_fullscreen else 'OFF'}", True, COLOR_WHITE if manager.settings_index == 2 else (150, 150, 150))
-            screen.blit(txt_bgm, (150, 205))
-            screen.blit(txt_sfx, (150, 255))
-            screen.blit(txt_fs,  (150, 305))
-            if manager.settings_index == 0:
-                btn_bgm_minus.current_color = (80, 100, 140)
-                btn_bgm_plus.current_color = (80, 100, 140)
-            btn_bgm_minus.draw(screen)
-            btn_bgm_plus.draw(screen)
-            if manager.settings_index == 1:
-                btn_sfx_minus.current_color = (80, 100, 140)
-                btn_sfx_plus.current_color = (80, 100, 140)
-            btn_sfx_minus.draw(screen)
-            btn_sfx_plus.draw(screen)
-            if manager.settings_index == 2: btn_fs_toggle.current_color = (80, 100, 140)
-            btn_fs_toggle.draw(screen)
-            if manager.settings_index == 3: btn_settings_kembali.current_color = (100, 100, 100)
-            btn_settings_kembali.draw(screen)
+            panel_x, panel_y, panel_w, panel_h = 150, 100, 500, 400
+            pygame.draw.rect(screen, (40, 45, 60), (panel_x, panel_y, panel_w, panel_h))
+            pygame.draw.rect(screen, COLOR_WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
+            pygame.draw.rect(screen, (20, 20, 30), (panel_x+5, panel_y+5, panel_w, panel_h), 2) 
 
+            title_set = font_title.render("PENGATURAN", True, COLOR_YELLOW)
+            screen.blit(title_set, (SCREEN_WIDTH//2 - title_set.get_width()//2, panel_y + 20))
+
+            # --- BARIS 1: BGM SLIDER ---
+            bgm_txt = font_menu.render("BGM VOLUME", True, COLOR_WHITE)
+            screen.blit(bgm_txt, (panel_x + 40, 195))
+            
+            track_bgm = btn_bgm_slider.rect
+            pygame.draw.rect(screen, (60, 60, 70), track_bgm) 
+            fill_w_bgm = int((manager.volume_bgm / 100) * track_bgm.width)
+            pygame.draw.rect(screen, (220, 80, 80), (track_bgm.x, track_bgm.y, fill_w_bgm, track_bgm.height)) 
+            pygame.draw.rect(screen, COLOR_WHITE, (track_bgm.x + fill_w_bgm - 5, track_bgm.y - 2, 10, track_bgm.height + 4)) 
+            
+            if manager.settings_index == 0:
+                pygame.draw.rect(screen, COLOR_RED, (track_bgm.x - 2, track_bgm.y - 2, track_bgm.width + 4, track_bgm.height + 4), 2)
+
+            if input_active == 'BGM':
+                pygame.draw.rect(screen, (80, 80, 80), rect_bgm_input)
+                pygame.draw.rect(screen, COLOR_YELLOW, rect_bgm_input, 1)
+                bgm_pct_surf = font_small.render(f"{input_text}_", True, COLOR_YELLOW)
+            else:
+                bgm_pct_surf = font_small.render(f"{manager.volume_bgm}%", True, COLOR_WHITE)
+            screen.blit(bgm_pct_surf, (rect_bgm_input.x + 8, rect_bgm_input.y + 6))
+
+            # --- BARIS 2: SFX SLIDER ---
+            sfx_txt = font_menu.render("SFX VOLUME", True, COLOR_WHITE)
+            screen.blit(sfx_txt, (panel_x + 40, 255))
+
+            track_sfx = btn_sfx_slider.rect
+            pygame.draw.rect(screen, (60, 60, 70), track_sfx) 
+            fill_w_sfx = int((manager.volume_sfx / 100) * track_sfx.width)
+            pygame.draw.rect(screen, (220, 80, 80), (track_sfx.x, track_sfx.y, fill_w_sfx, track_sfx.height)) 
+            pygame.draw.rect(screen, COLOR_WHITE, (track_sfx.x + fill_w_sfx - 5, track_sfx.y - 2, 10, track_sfx.height + 4)) 
+            
+            if manager.settings_index == 1:
+                pygame.draw.rect(screen, COLOR_RED, (track_sfx.x - 2, track_sfx.y - 2, track_sfx.width + 4, track_sfx.height + 4), 2)
+
+            if input_active == 'SFX':
+                pygame.draw.rect(screen, (80, 80, 80), rect_sfx_input)
+                pygame.draw.rect(screen, COLOR_YELLOW, rect_sfx_input, 1)
+                sfx_pct_surf = font_small.render(f"{input_text}_", True, COLOR_YELLOW)
+            else:
+                sfx_pct_surf = font_small.render(f"{manager.volume_sfx}%", True, COLOR_WHITE)
+            screen.blit(sfx_pct_surf, (rect_sfx_input.x + 8, rect_sfx_input.y + 6))
+
+            # --- BARIS 3: FULLSCREEN TOGGLE ---
+            fs_txt = font_menu.render("FULLSCREEN", True, COLOR_WHITE)
+            screen.blit(fs_txt, (panel_x + 40, 315))
+            
+            fs_status_rect = pygame.Rect(350, 310, 60, 35)
+            pygame.draw.rect(screen, (60, 60, 70), fs_status_rect)
+            pygame.draw.rect(screen, COLOR_WHITE, fs_status_rect, 1)
+            fs_status_txt = font_small.render("ON" if manager.is_fullscreen else "OFF", True, COLOR_WHITE)
+            screen.blit(fs_status_txt, (fs_status_rect.x + (60 - fs_status_txt.get_width())//2, fs_status_rect.y + 10))
+
+            if manager.settings_index == 2:
+                btn_fs_toggle.current_color = (60, 70, 100)
+                pygame.draw.rect(screen, COLOR_RED, (btn_fs_toggle.rect.x - 2, btn_fs_toggle.rect.y - 2, btn_fs_toggle.rect.width + 4, btn_fs_toggle.rect.height + 4), 2)
+            else:
+                btn_fs_toggle.current_color = (40, 45, 60)
+            btn_fs_toggle.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, (btn_fs_toggle.rect.x, btn_fs_toggle.rect.y, btn_fs_toggle.rect.width, btn_fs_toggle.rect.height), 1)
+
+            # --- BARIS 4: KEMBALI KE MENU ---
+            if manager.settings_index == 3:
+                btn_settings_kembali.current_color = (60, 70, 100)
+                pygame.draw.rect(screen, COLOR_RED, (btn_settings_kembali.rect.x - 2, btn_settings_kembali.rect.y - 2, btn_settings_kembali.rect.width + 4, btn_settings_kembali.rect.height + 4), 2)
+            else:
+                btn_settings_kembali.current_color = (40, 45, 60)
+            btn_settings_kembali.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, (btn_settings_kembali.rect.x, btn_settings_kembali.rect.y, btn_settings_kembali.rect.width, btn_settings_kembali.rect.height), 1)
+
+        # ==========================================
+        # CUSTOM RENDER LAYAR KREDIT (HIERARKI PS1 UI v1.2.7)
+        # ==========================================
         elif manager.current_state == 'CREDIT':
-            title_cred = font_title.render("TIM PENGEMBANG", True, COLOR_RED)
-            screen.blit(title_cred, (SCREEN_WIDTH//2 - title_cred.get_width()//2, 80))
-            for i, member in enumerate(manager.team_members):
-                txt_mem = font_menu.render(member, True, COLOR_WHITE)
-                screen.blit(txt_mem, (SCREEN_WIDTH//2 - txt_mem.get_width()//2, 180 + (i * 45)))
+            pygame.draw.rect(screen, (25, 30, 45), (0, 20, SCREEN_WIDTH, 60))
+            pygame.draw.line(screen, COLOR_WHITE, (0, 20), (SCREEN_WIDTH, 20), 2) 
+            pygame.draw.line(screen, COLOR_WHITE, (0, 80), (SCREEN_WIDTH, 80), 2) 
+
+            title_cred = font_title.render("TIM PENGEMBANG", True, COLOR_YELLOW)
+            screen.blit(title_cred, (SCREEN_WIDTH//2 - title_cred.get_width()//2, 30))
+
+            # Injeksi Data Tim Spesifik (Sesuai Koreksi Data Terbaru)
+            team_info = [
+                ("1. Ihsan Dwi Putra", "15250094", "Programmer"),
+                ("2. Azlan", "15250222", "UI/Logic"),
+                ("3. Aldo Farisanrya. R", "15250145", "Desain & Integrasi"),
+                ("4. Andika Tri Sapto", "15250146", "Desain & Integrasi"),
+                ("5. Muhammad Imam Baihaqi", "15250004", "Asset Support") 
+            ]
+
+            start_y = 100
+            box_h = 60
+            spacing = 15
+            for i, (name, nim, role) in enumerate(team_info):
+                y = start_y + i * (box_h + spacing)
+                # Render Panel Luar
+                pygame.draw.rect(screen, (40, 45, 60), (60, y, SCREEN_WIDTH - 120, box_h))
+                pygame.draw.rect(screen, COLOR_WHITE, (60, y, SCREEN_WIDTH - 120, box_h), 1)
+                
+                # Render NAMA
+                n_txt = font_menu.render(name, True, COLOR_WHITE)
+                screen.blit(n_txt, (80, y + 18))
+                
+                # Render NIM
+                nim_txt = font_small.render(nim, True, (180, 180, 180))
+                screen.blit(nim_txt, (SCREEN_WIDTH//2, y + 25))
+                
+                # Render KOTAK ROLE (BADGE)
+                role_w, role_h = 180, 35
+                role_x = SCREEN_WIDTH - 60 - role_w - 20
+                role_y = y + 12
+                pygame.draw.rect(screen, (60, 60, 70), (role_x, role_y, role_w, role_h))
+                pygame.draw.rect(screen, COLOR_WHITE, (role_x, role_y, role_w, role_h), 1)
+                r_txt = font_small.render(role, True, COLOR_WHITE)
+                screen.blit(r_txt, (role_x + (role_w - r_txt.get_width())//2, role_y + (role_h - r_txt.get_height())//2))
+
+            # Rendering Tombol Kembali Kredit dengan Efek Hover Merah
+            btn_credit_kembali.current_color = (60, 70, 100) if btn_credit_kembali.is_hovered else (40, 45, 60)
             btn_credit_kembali.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, (btn_credit_kembali.rect.x, btn_credit_kembali.rect.y, btn_credit_kembali.rect.width, btn_credit_kembali.rect.height), 1)
+            if btn_credit_kembali.is_hovered:
+                pygame.draw.rect(screen, COLOR_RED, (btn_credit_kembali.rect.x - 2, btn_credit_kembali.rect.y - 2, btn_credit_kembali.rect.width + 4, btn_credit_kembali.rect.height + 4), 2)
 
         elif manager.current_state == 'MODE_SELECT':
-            title_mode = font_menu.render(f"PILIH TINGKAT KESULITAN (HIGH SCORE: {manager.high_score})", True, COLOR_YELLOW)
-            screen.blit(title_mode, (SCREEN_WIDTH//2 - title_mode.get_width()//2, 70))
+            pygame.draw.rect(screen, (25, 30, 45), (0, 20, SCREEN_WIDTH, 60))
+            pygame.draw.line(screen, COLOR_WHITE, (0, 20), (SCREEN_WIDTH, 20), 2) 
+            pygame.draw.line(screen, COLOR_WHITE, (0, 80), (SCREEN_WIDTH, 80), 2) 
+
+            header_str = f"PILIH TINGKAT KESULITAN  |  HIGH SCORE: {manager.high_score}"
+            header_txt = font_menu.render(header_str, True, COLOR_YELLOW)
+            screen.blit(header_txt, (40, 35))
+
+            subtitles = {
+                'EASY': "Santai, pola lambat",
+                'MEDIUM': "Lebih cepat, skor x1.5",
+                'HARD': f"Butuh {manager.mode_requirements['HARD']} pts",
+                'IMPOSSIBLE': f"Butuh {manager.mode_requirements['IMPOSSIBLE']} pts",
+                'UNLIMITED': "Mode skor tanpa akhir"
+            }
+
             for idx, (mode_name, btn) in enumerate(btn_modes.items()):
                 is_locked = manager.get_lock_status(mode_name)
-                req_points = manager.mode_requirements[mode_name]
-                btn.text = f"{mode_name} (Butuh {req_points} Pts) [LOCKED]" if is_locked else mode_name
-                if is_locked: btn.current_color = (40, 40, 40)
-                elif idx == manager.mode_index: btn.current_color = (50, 70, 90)
-                btn.draw(screen)
-            if manager.mode_index == len(manager.modes_list): btn_mode_kembali.current_color = (50, 50, 50)
+                
+                if is_locked:
+                    btn.current_color = (60, 60, 60) 
+                else:
+                    if idx == manager.mode_index:
+                        btn.current_color = (60, 70, 100) 
+                        pygame.draw.rect(screen, COLOR_RED, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                    else:
+                        btn.current_color = (40, 45, 60) 
+
+                btn.draw(screen) 
+                pygame.draw.rect(screen, COLOR_WHITE, (btn.rect.x, btn.rect.y, btn.rect.width, btn.rect.height), 1)
+
+                text_color = (150, 150, 150) if is_locked else COLOR_WHITE
+                mode_txt = font_menu.render(mode_name, True, text_color)
+                sub_txt = font_small.render(subtitles[mode_name], True, (150, 150, 150))
+                
+                screen.blit(mode_txt, (btn.rect.x + 20, btn.rect.y + 10))
+                screen.blit(sub_txt, (btn.rect.x + 20, btn.rect.y + 35))
+
+                badge_w, badge_h = 80, 25
+                badge_x = btn.rect.x + btn.rect.width - badge_w - 15
+                badge_y = btn.rect.y + (btn.rect.height - badge_h) // 2
+                
+                if is_locked:
+                    pygame.draw.rect(screen, (180, 50, 50), (badge_x, badge_y, badge_w, badge_h))
+                    badge_txt = font_small.render("LOCKED", True, COLOR_WHITE)
+                else:
+                    pygame.draw.rect(screen, (80, 180, 80), (badge_x, badge_y, badge_w, badge_h))
+                    badge_txt = font_small.render("TERBUKA", True, COLOR_WHITE)
+                
+                screen.blit(badge_txt, (badge_x + (badge_w - badge_txt.get_width())//2, badge_y + (badge_h - badge_txt.get_height())//2))
+
+            panel_x, panel_y, panel_w, panel_h = 480, 150, 280, 250
+            pygame.draw.rect(screen, (40, 45, 60), (panel_x, panel_y, panel_w, panel_h))
+            pygame.draw.rect(screen, COLOR_WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
+            
+            panel_title = font_menu.render("VALIDASI MODE", True, COLOR_YELLOW)
+            screen.blit(panel_title, (panel_x + 20, panel_y + 20))
+            
+            info_bullets = [
+                "EASY untuk demo dosen",
+                "MEDIUM terasa paling adil",
+                "HARD dibuka dari skor",
+                "LOCKED jangan ditumpuk teks",
+                "Tombol back wajib jelas"
+            ]
+            for i, bullet in enumerate(info_bullets):
+                b_txt = font_small.render(f"* {bullet}", True, COLOR_WHITE)
+                screen.blit(b_txt, (panel_x + 20, panel_y + 70 + (i * 30)))
+
+            if manager.mode_index == len(manager.modes_list):
+                btn_mode_kembali.current_color = (150, 50, 50)
+            else:
+                btn_mode_kembali.current_color = (40, 45, 60)
             btn_mode_kembali.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, (btn_mode_kembali.rect.x, btn_mode_kembali.rect.y, btn_mode_kembali.rect.width, btn_mode_kembali.rect.height), 1)
 
         elif manager.current_state == 'TUTORIAL':
+            # Header Banner Gelap
+            pygame.draw.rect(screen, (25, 30, 45), (0, 20, SCREEN_WIDTH, 60))
+            pygame.draw.line(screen, COLOR_WHITE, (0, 20), (SCREEN_WIDTH, 20), 2) 
+            pygame.draw.line(screen, COLOR_WHITE, (0, 80), (SCREEN_WIDTH, 80), 2) 
+
+            header_str = "TUTORIAL SINGKAT: SUSUN BLOK, INGAT WARNA, JANGAN PANIK"
+            header_txt = font_menu.render(header_str, True, COLOR_YELLOW)
+            screen.blit(header_txt, (40, 35))
+
+            # Panel Kiri (CARA MAIN)
+            left_panel = pygame.Rect(40, 100, 340, 360)
+            pygame.draw.rect(screen, (40, 45, 60), left_panel)
+            pygame.draw.rect(screen, COLOR_WHITE, left_panel, 2)
+            
+            c_main_txt = font_title.render("CARA MAIN", True, COLOR_YELLOW)
+            screen.blit(c_main_txt, (left_panel.x + 20, left_panel.y + 20))
+
+            rules = [
+                "1. Perhatikan warna target.",
+                "2. Tekan tombol warna.",
+                "3. POP untuk hapus blok terakhir.",
+                "4. VALIDASI saat urutan benar.",
+                "5. Garis merah = zona bahaya."
+            ]
+            for i, rule in enumerate(rules):
+                screen.blit(font_small.render(rule, True, COLOR_WHITE), (left_panel.x + 20, left_panel.y + 80 + (i * 45)))
+
+            # Panel Kanan (KONTROL)
+            right_panel = pygame.Rect(420, 100, 340, 360)
+            pygame.draw.rect(screen, (40, 45, 60), right_panel)
+            pygame.draw.rect(screen, COLOR_WHITE, right_panel, 2)
+
+            kontrol_txt = font_title.render("KONTROL", True, COLOR_YELLOW)
+            screen.blit(kontrol_txt, (right_panel.x + 20, right_panel.y + 20))
+
+            controls = [
+                ((220, 80, 80), "R", "MERAH"),
+                ((80, 140, 220), "B", "BIRU"),
+                ((220, 180, 80), "Y", "KUNING"),
+                ((80, 220, 80), "G", "HIJAU"),
+                ((120, 120, 130), "BACKSPACE", "POP"),
+                ((50, 160, 80), "ENTER", "VALIDASI"),
+                ((180, 60, 60), "M", "MENYERAH")
+            ]
+            
+            for i, (col, key, desc) in enumerate(controls):
+                cy = right_panel.y + 70 + (i * 40)
+                pygame.draw.rect(screen, col, (right_panel.x + 20, cy, 100, 30))
+                pygame.draw.rect(screen, COLOR_WHITE, (right_panel.x + 20, cy, 100, 30), 1)
+                k_txt = font_small.render(key, True, COLOR_WHITE)
+                screen.blit(k_txt, (right_panel.x + 20 + (100 - k_txt.get_width())//2, cy + 8))
+                d_txt = font_small.render(desc, True, COLOR_WHITE)
+                screen.blit(d_txt, (right_panel.x + 140, cy + 8))
+
+            # Render Tombol Bawah (Kembali & Lanjut)
+            btn_tut_kembali.current_color = (180, 60, 60) if btn_tut_kembali.is_hovered else (40, 45, 60)
+            btn_tut_lanjut.current_color = (60, 180, 80) if btn_tut_lanjut.is_hovered else (40, 45, 60)
+
+            btn_tut_kembali.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, btn_tut_kembali.rect, 1)
+            btn_tut_lanjut.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, btn_tut_lanjut.rect, 1)
+            
+            # ==========================================
+        # CUSTOM RENDER LAYAR LOADING (PS1 UI v1.2.8)
+        # ==========================================
+        elif manager.current_state == 'LOADING':
+            # Efek Gelap Transparan Overlay
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((10, 10, 15, 230)) 
+            overlay.fill((15, 15, 20, 240)) 
             screen.blit(overlay, (0,0))
-            pygame.draw.rect(screen, (30, 35, 50), (100, 150, 600, 300))
-            pygame.draw.rect(screen, COLOR_YELLOW, (100, 150, 600, 300), 2)
-            title_tut = font_menu.render(f"PANDUAN OPERASIONAL - LANGKAH {manager.tutorial_step + 1}/4", True, COLOR_YELLOW)
-            screen.blit(title_tut, (SCREEN_WIDTH//2 - title_tut.get_width()//2, 175))
-            lines = manager.tutorial_messages[manager.tutorial_step]
-            for i, line_text in enumerate(lines):
-                txt_render = font_tut.render(line_text, True, COLOR_WHITE if i > 0 else COLOR_YELLOW)
-                screen.blit(txt_render, (SCREEN_WIDTH//2 - txt_render.get_width()//2, 230 + (i * 30)))
-            btn_tut_paham.draw(screen)
-            btn_tut_lewati.draw(screen)
+            
+            # Garis Putih Dekoratif PS1
+            pygame.draw.line(screen, COLOR_WHITE, (100, 100), (SCREEN_WIDTH - 100, 100), 3) 
+            pygame.draw.line(screen, COLOR_WHITE, (100, 500), (SCREEN_WIDTH - 100, 500), 3) 
+
+            # Render Logo angSSatan (Menyerap Menu Logo)
+            if menu_logo_image:
+                logo_rect = menu_logo_image.get_rect(center=(SCREEN_WIDTH//2, 180))
+                screen.blit(menu_logo_image, logo_rect)
+            else:
+                logo_txt = font_title.render("angSSatan", True, COLOR_RED)
+                screen.blit(logo_txt, (SCREEN_WIDTH//2 - logo_txt.get_width()//2, 150))
+
+            # Kotak Utama Loading
+            load_box_w, load_box_h = 500, 90
+            load_box_x = SCREEN_WIDTH//2 - load_box_w//2
+            load_box_y = 300
+            pygame.draw.rect(screen, (50, 55, 70), (load_box_x, load_box_y, load_box_w, load_box_h))
+            pygame.draw.rect(screen, COLOR_WHITE, (load_box_x, load_box_y, load_box_w, load_box_h), 2)
+            
+            load_txt = font_menu.render("MEMUAT RUANG BERMAIN...", True, COLOR_WHITE)
+            screen.blit(load_txt, (load_box_x + 20, load_box_y + 15))
+            
+            # Progress Bar Bergerak Merah Horor
+            bar_w, bar_h = 460, 20
+            bar_x, bar_y = load_box_x + 20, load_box_y + 55
+            pygame.draw.rect(screen, (30, 35, 45), (bar_x, bar_y, bar_w, bar_h)) 
+            pygame.draw.rect(screen, COLOR_WHITE, (bar_x, bar_y, bar_w, bar_h), 1) 
+            
+            fill_width = int((loading_timer / 3000) * bar_w)
+            pygame.draw.rect(screen, (220, 80, 80), (bar_x, bar_y, fill_width, bar_h))
+            
+            # Teks Petunjuk Misterius (Hints)
+            hint_txt = font_small.render(current_hint, True, (150, 150, 150))
+            screen.blit(hint_txt, (SCREEN_WIDTH//2 - hint_txt.get_width()//2, 420))
 
         elif manager.current_state == 'CONFIRM':
             txt_ask = font_title.render("APAKAH ANDA YAKIN?", True, COLOR_WHITE)
@@ -613,22 +1019,39 @@ def main():
             btn_confirm_tidak.draw(screen)
 
         elif manager.current_state == 'GAME_OVER':
-            txt_go = font_title.render("SISTEM HANCUR (GAME OVER)", True, COLOR_RED)
-            screen.blit(txt_go, (SCREEN_WIDTH//2 - txt_go.get_width()//2, 100))
-            for idx, btn in enumerate(btn_go_options):
-                if idx == manager.game_over_index: btn.current_color = (60, 70, 100)
-                btn.draw(screen)
+            pass # UI Game Over lama dihancurkan, diganti dengan Overlay Visual PS1 di bagian bawah
+        
+        # --- LOGIKA TOMBOL LAYAR JEDA ---
+        elif manager.current_state == 'PAUSE':
+            clicked = True
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = manager.previous_state
+                elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack()
+                elif btn_pause_options[2].is_clicked(event, mouse_pos): manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
+                elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_MENU')
+                else: clicked = False
+                if clicked: play_click()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = manager.previous_state
+                elif event.key == pygame.K_DOWN: manager.pause_index = (manager.pause_index + 1) % len(manager.pause_options); play_hover()
+                elif event.key == pygame.K_UP: manager.pause_index = (manager.pause_index - 1) % len(manager.pause_options); play_hover()
+                elif event.key == pygame.K_RETURN:
+                    play_click()
+                    if manager.pause_index == 0: manager.current_state = manager.previous_state
+                    elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack()
+                    elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
+                    elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU')
 
-        elif manager.current_state in ['MEMORIZE', 'PLAY']:
+        elif manager.current_state in ['MEMORIZE', 'PLAY', 'PAUSE', 'GAME_OVER']:
             monster.draw(screen)
             if manager.current_state == 'MEMORIZE':
                 tower_renderer.draw_player_tower(screen, manager.target_blueprint)
                 state_desc = f"MODE: {manager.selected_mode} | INGAT CETAK BIRU!"
-            elif manager.current_state == 'PLAY':
+            else:
                 tower_renderer.draw_player_tower(screen, player_stack.items)
                 state_desc = f"MODE: {manager.selected_mode}"
                 for btn in [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, 
-                            btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_keluar]:
+                            btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]:
                     btn.draw(screen)
             if manager.inner_monologue_text != "":
                 txt_batin_surf = font_batin.render(manager.inner_monologue_text, True, (255, 120, 120))
@@ -646,6 +1069,91 @@ def main():
         if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             fade_surface.set_alpha(manager.fade_alpha)
             screen.blit(fade_surface, (0, 0))
+        
+        # ==========================================
+        # CUSTOM RENDER PAUSE MENU (PS1 RETRO UI)
+        # ==========================================
+        if manager.current_state == 'PAUSE':
+            # Dimmed Background Overlay 60% Opacity untuk menahan ketegangan horor
+            pause_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            pause_overlay.fill((10, 10, 15, 160)) 
+            screen.blit(pause_overlay, (0,0))
+            
+            panel_w, panel_h = 360, 360
+            panel_x = SCREEN_WIDTH//2 - panel_w//2
+            panel_y = SCREEN_HEIGHT//2 - panel_h//2
+            
+            pygame.draw.rect(screen, (35, 40, 55), (panel_x, panel_y, panel_w, panel_h))
+            pygame.draw.rect(screen, COLOR_WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
+            pygame.draw.rect(screen, (20, 20, 30), (panel_x+5, panel_y+5, panel_w, panel_h), 2)
+
+            pause_title = font_title.render("PERMAINAN DIJEDA", True, COLOR_YELLOW)
+            screen.blit(pause_title, (SCREEN_WIDTH//2 - pause_title.get_width()//2, panel_y + 30))
+            
+            # Kalimat Psikologis Horor
+            pause_sub = font_small.render("napas dulu, manusia rapuh", True, (160, 160, 160))
+            screen.blit(pause_sub, (SCREEN_WIDTH//2 - pause_sub.get_width()//2, panel_y + 70))
+
+            for idx, btn in enumerate(btn_pause_options):
+                if idx == manager.pause_index: 
+                    btn.current_color = (120, 50, 50) # Merah redup mencekam
+                    pygame.draw.rect(screen, COLOR_RED, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                    # Ornamen panah kecil ala retro UI
+                    arrow = font_menu.render(">", True, COLOR_RED)
+                    screen.blit(arrow, (btn.rect.x - 25, btn.rect.y + 10))
+                else: 
+                    btn.current_color = (50, 55, 75)
+                btn.draw(screen)
+                pygame.draw.rect(screen, COLOR_WHITE, btn.rect, 1)
+
+            footer_txt = font_small.render("ESC: KEMBALI  |  ENTER: PILIH", True, (130, 130, 140))
+            screen.blit(footer_txt, (SCREEN_WIDTH//2 - footer_txt.get_width()//2, panel_y + panel_h - 30))
+        
+        # ==========================================
+        # CUSTOM RENDER GAME OVER (PS1 RETRO UI)
+        # ==========================================
+        if manager.current_state == 'GAME_OVER':
+            # Dimmed Background Overlay 78% Opacity (Lebih pekat dari menu Jeda)
+            go_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            go_overlay.fill((15, 15, 20, 200)) 
+            screen.blit(go_overlay, (0,0))
+
+            # Header Judul
+            title_go_1 = font_title.render("SISTEM HANCUR", True, (220, 80, 80)) 
+            title_go_2 = font_menu.render("( GAME OVER )", True, (220, 80, 80))
+            screen.blit(title_go_1, (SCREEN_WIDTH//2 - title_go_1.get_width()//2, 60))
+            screen.blit(title_go_2, (SCREEN_WIDTH//2 - title_go_2.get_width()//2, 110))
+
+            # Panel Kotak Statistik Skor dan Waktu
+            panel_w, panel_h = 340, 80
+            panel_x = SCREEN_WIDTH//2 - panel_w//2
+            panel_y = 160
+            pygame.draw.rect(screen, (50, 55, 65), (panel_x, panel_y, panel_w, panel_h))
+            pygame.draw.rect(screen, COLOR_WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
+            
+            skor_txt = font_menu.render(f"SKOR AKHIR : {manager.score}", True, COLOR_WHITE)
+            sec = manager.state_timer // 1000
+            ms = manager.state_timer % 1000
+            waktu_txt = font_menu.render(f"WAKTU      : {sec:02d}:{ms:03d}", True, COLOR_WHITE)
+            
+            screen.blit(skor_txt, (panel_x + 20, panel_y + 15))
+            screen.blit(waktu_txt, (panel_x + 20, panel_y + 45))
+
+            # Rendering Tombol Retro dengan Panah Merah
+            for idx, btn in enumerate(btn_go_options):
+                if idx == manager.game_over_index: 
+                    btn.current_color = (120, 50, 50) 
+                    pygame.draw.rect(screen, COLOR_RED, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                    arrow = font_menu.render(">", True, COLOR_RED)
+                    screen.blit(arrow, (btn.rect.x - 25, btn.rect.y + 10))
+                else: 
+                    btn.current_color = (40, 45, 60)
+                btn.draw(screen)
+                pygame.draw.rect(screen, COLOR_WHITE, btn.rect, 1)
+
+            # Footer Teks Psikologis Redup
+            hint_go = font_small.render("petunjuk: jangan asal validasi saat panik", True, (150, 150, 150))
+            screen.blit(hint_go, (SCREEN_WIDTH//2 - hint_go.get_width()//2, 480))
 
         pygame.display.flip()
         clock.tick(FPS)

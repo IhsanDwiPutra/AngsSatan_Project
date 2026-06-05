@@ -77,6 +77,8 @@ class GameManager:
         self.confirm_index = 1 
         self.game_over_index = 0
         self.game_over_options = ['ULANG PERMAINAN', 'UBAH MODE KESULITAN', 'KEMBALI KE MENU']
+        self.pause_index = 0
+        self.pause_options = ['LANJUTKAN', 'ULANG LEVEL', 'PENGATURAN', 'KEMBALI KE MENU']
 
         self.team_members = [
             "1. Ihsan Dwi Putra (15250094)",
