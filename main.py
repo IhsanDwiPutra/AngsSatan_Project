@@ -8,10 +8,9 @@ from core.ui_components import Button
 from entities.tower import TowerRenderer
 from entities.monster import AbyssalMonster
 
-# INISIALISASI UTAMA
 pygame.init()
 pygame.font.init()
-pygame.mixer.init()
+pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
 
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
 pygame.display.set_caption("angSSatan v1.2")
@@ -31,21 +30,51 @@ def main():
     monster = AbyssalMonster()
 
     # ==========================================
-    # PIPELINE INTEGRASI ASET EXTERNAL AUDIO V1.2
+    # PIPELINE INTEGRASI ASET AUDIO MULTI-CHANNEL
     # ==========================================
-    # FIX: Otomatis membaca startup.mp3 hasil modifikasi sukses Tim Anda
     audio_path = os.path.join("assets", "audio", "startup.mp3")
     if os.path.exists(audio_path):
         try:
             pygame.mixer.music.load(audio_path)
             pygame.mixer.music.set_volume(manager.volume_sfx / 100)
             pygame.mixer.music.play(0)
-            print("[AUDIO] Berhasil mengeksekusi audio startup (.mp3).")
-        except pygame.error as e:
-            print(f"[PERINGATAN] Gagal memutar audio: {e}")
+        except pygame.error: pass
+
+    hover_sfx, click_sfx = None, None
+    block_push_sfx, block_pop_sfx, success_sfx, error_sfx = None, None, None, None
+    
+    try:
+        if os.path.exists(os.path.join("assets", "audio", "hover.wav")):
+            hover_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "hover.wav"))
+        if os.path.exists(os.path.join("assets", "audio", "click.wav")):
+            click_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "click.wav"))
+            
+        if os.path.exists(os.path.join("assets", "audio", "block_push.wav")):
+            block_push_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "block_push.wav"))
+        if os.path.exists(os.path.join("assets", "audio", "block_pop.wav")):
+            block_pop_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "block_pop.wav"))
+        if os.path.exists(os.path.join("assets", "audio", "success.wav")):
+            success_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "success.wav"))
+        if os.path.exists(os.path.join("assets", "audio", "error.wav")):
+            error_sfx = pygame.mixer.Sound(os.path.join("assets", "audio", "error.wav"))
+    except pygame.error: print("[AUDIO] Gagal memuat beberapa SFX In-Game.")
+
+    def play_sfx(sound_obj):
+        if sound_obj:
+            sound_obj.set_volume(manager.volume_sfx / 100)
+            sound_obj.play()
+
+    def play_hover(): play_sfx(hover_sfx)
+    def play_click(): play_sfx(click_sfx)
+    def play_push(): play_sfx(block_push_sfx)
+    def play_pop(): play_sfx(block_pop_sfx)
+    def play_success(): play_sfx(success_sfx)
+    def play_error(): play_sfx(error_sfx)
+
+    current_bgm_state = 'INTRO'
 
     # ==========================================
-    # PIPELINE INTEGRASI ASET GAMBAR LOGO & INTRO
+    # PIPELINE GAMBAR & VIDEO BG LOOP
     # ==========================================
     img_studio_path = os.path.join("assets", "sprites", "studio_logo.png")
     studio_logo_image = None
@@ -53,7 +82,7 @@ def main():
         try:
             studio_logo_image = pygame.image.load(img_studio_path).convert_alpha()
             studio_logo_image = pygame.transform.scale(studio_logo_image, (350, 250))
-        except pygame.error: print("[PERINGATAN] Gagal memproses studio_logo.png")
+        except pygame.error: pass
 
     img_ubsi_path = os.path.join("assets", "sprites", "ubsi_logo.png")
     ubsi_logo_image = None
@@ -61,46 +90,29 @@ def main():
         try:
             ubsi_logo_image = pygame.image.load(img_ubsi_path).convert_alpha()
             ubsi_logo_image = pygame.transform.scale(ubsi_logo_image, (150, 150))
-        except pygame.error: print("[PERINGATAN] Gagal memproses ubsi_logo.png")
+        except pygame.error: pass
 
-    # CELAH TERPENUHI: Memuat Gambar Judul Aplikasi "angSSatan" Untuk Sisi Kanan Atas
     img_menu_logo_path = os.path.join("assets", "sprites", "menu_logo.png")
     menu_logo_image = None
     if os.path.exists(img_menu_logo_path):
         try:
             menu_logo_image = pygame.image.load(img_menu_logo_path).convert_alpha()
-            # Scale ukuran logo judul agar proporsional di sisi kanan
             menu_logo_image = pygame.transform.scale(menu_logo_image, (320, 120))
-            print("[VISUAL] Gambar logo aplikasi menu utama berhasil dimuat.")
-        except pygame.error:
-            print("[PERINGATAN] Gagal memproses data gambar menu_logo.png.")
+        except pygame.error: pass
 
-    # ==========================================
-    # PIPELINE LOGIKA LOOPING VIDEO BACKGROUND (JPG SEQUENCE)
-    # ==========================================
     video_frames_dir = os.path.join("assets", "video_frames")
-    background_frames = []
+    frame_files = []
+    if os.path.exists(video_frames_dir):
+        frame_files = sorted([f for f in os.listdir(video_frames_dir) if f.endswith(('.png', '.jpg', '.jpeg'))])
     current_frame_index = 0
     frame_timer = 0
-    frame_duration = 40  # Durasi per frame dalam milidetik (~24 FPS)
-
-    if os.path.exists(video_frames_dir):
-        # Menyortir file agar frame berurutan secara matematis (frame_0, frame_1...)
-        frame_files = sorted([f for f in os.listdir(video_frames_dir) if f.endswith(('.png', '.jpg', '.jpeg'))])
-        for file_name in frame_files:
-            try:
-                frame_img = pygame.image.load(os.path.join(video_frames_dir, file_name)).convert()
-                frame_img = pygame.transform.scale(frame_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
-                background_frames.append(frame_img)
-            except pygame.error: pass
-        print(f"[VIDEO BG] Berhasil menyuntikkan {len(background_frames)} frame background video loop.")
-    else:
-        print(f"[DIAGNOSIS LOG] Folder sekuens video tidak ditemukan di: {video_frames_dir}")
+    frame_duration = 40  
+    cached_frame_img = None
+    cached_frame_idx = -1
 
     # ==========================================
-    # INITIALIZATION INTERACTIVE BUTTONS V1.2
+    # INITIALIZATION INTERACTIVE BUTTONS
     # ==========================================
-    # FIX COORDINATES: Menggeser seluruh barisan tombol ke arah kiri sesuai gambar MAIN_MENU.jpeg
     btn_menu_options = [
         Button(40, 220, 260, 50, "MULAI", (40, 45, 60), (60, 70, 100), font_size=22),
         Button(40, 290, 260, 50, "PENGATURAN", (40, 45, 60), (60, 70, 100), font_size=22),
@@ -114,7 +126,6 @@ def main():
     btn_sfx_plus  = Button(540, 250, 40, 35, "+", (50, 60, 80), (80, 100, 140))
     btn_fs_toggle = Button(480, 300, 100, 35, "UBAH", (50, 60, 80), (80, 100, 140))
     btn_settings_kembali = Button(SCREEN_WIDTH//2 - 150, 380, 300, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
-
     btn_credit_kembali = Button(SCREEN_WIDTH//2 - 150, 480, 300, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
 
     btn_modes = {
@@ -158,68 +169,115 @@ def main():
         mouse_pos = pygame.mouse.get_pos() 
         
         # ==========================================
+        # BGM MUTE SAAT FASE KONFIRMASI
+        # ==========================================
+        if manager.current_state in ['MAIN_MENU', 'SETTINGS_MENU', 'CREDIT', 'MODE_SELECT', 'TUTORIAL']:
+            target_bgm_state = 'MENU'
+        elif manager.current_state in ['PLAY', 'MEMORIZE', 'GAME_OVER']:
+            target_bgm_state = 'PLAY'
+        elif manager.current_state == 'CONFIRM':
+            target_bgm_state = 'SILENT' 
+        else:
+            target_bgm_state = 'INTRO'
+            
+        if current_bgm_state != target_bgm_state:
+            if target_bgm_state == 'MENU':
+                bgm_path = os.path.join("assets", "audio", "bgm_menu.mp3")
+                if os.path.exists(bgm_path):
+                    pygame.mixer.music.load(bgm_path)
+                    pygame.mixer.music.set_volume(manager.volume_bgm / 100)
+                    pygame.mixer.music.play(-1) 
+            elif target_bgm_state == 'PLAY':
+                bgm_game_path = os.path.join("assets", "audio", "bgm_game.mp3")
+                if os.path.exists(bgm_game_path):
+                    pygame.mixer.music.load(bgm_game_path)
+                    pygame.mixer.music.set_volume(manager.volume_bgm / 100)
+                    pygame.mixer.music.play(-1) 
+                else:
+                    pygame.mixer.music.stop() 
+            elif target_bgm_state == 'SILENT':
+                pygame.mixer.music.stop() 
+                
+            current_bgm_state = target_bgm_state
+            
+        if manager.current_state == 'SETTINGS_MENU':
+            pygame.mixer.music.set_volume(manager.volume_bgm / 100)
+        
+        # ==========================================
         # UPDATE ANIMASI FRAME VIDEO BACKGROUND LOOP
         # ==========================================
-        if len(background_frames) > 0 and manager.current_state == 'MAIN_MENU':
+        if len(frame_files) > 0 and manager.current_state == 'MAIN_MENU':
             frame_timer += delta_time
             if frame_timer >= frame_duration:
-                # Modulo % membuat sekuens gambar berputar berulang terus tanpa henti (Infinite Loop)
-                current_frame_index = (current_frame_index + 1) % len(background_frames)
+                current_frame_index = (current_frame_index + 1) % len(frame_files)
                 frame_timer = 0
+            
+            if current_frame_index != cached_frame_idx:
+                try:
+                    raw_img = pygame.image.load(os.path.join(video_frames_dir, frame_files[current_frame_index])).convert()
+                    cached_frame_img = pygame.transform.scale(raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+                    cached_frame_idx = current_frame_index
+                except pygame.error: pass
 
         # ==========================================
-        # HOVER SINKRONISASI UPDATE INTERACTIVE
+        # HOVER SINKRONISASI UPDATE + SFX TRIGGER
         # ==========================================
+        active_buttons = []
+        if manager.current_state == 'MAIN_MENU': active_buttons = btn_menu_options
+        elif manager.current_state == 'SETTINGS_MENU': active_buttons = [btn_bgm_minus, btn_bgm_plus, btn_sfx_minus, btn_sfx_plus, btn_fs_toggle, btn_settings_kembali]
+        elif manager.current_state == 'CREDIT': active_buttons = [btn_credit_kembali]
+        elif manager.current_state == 'MODE_SELECT': active_buttons = list(btn_modes.values()) + [btn_mode_kembali]
+        elif manager.current_state == 'TUTORIAL': active_buttons = [btn_tut_paham, btn_tut_lewati]
+        elif manager.current_state == 'PLAY': active_buttons = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_keluar]
+        elif manager.current_state == 'CONFIRM': active_buttons = [btn_confirm_ya, btn_confirm_tidak]
+        elif manager.current_state == 'GAME_OVER': active_buttons = btn_go_options
+
+        for btn in active_buttons:
+            was_hovered = btn.is_hovered
+            btn.update(mouse_pos)
+            if not was_hovered and btn.is_hovered:
+                play_hover()
+
+        old_menu, old_set, old_mode, old_conf, old_go = manager.menu_index, manager.settings_index, manager.mode_index, manager.confirm_index, manager.game_over_index
+        
         if manager.current_state == 'MAIN_MENU':
             for idx, btn in enumerate(btn_menu_options):
-                btn.update(mouse_pos)
                 if btn.is_hovered: manager.menu_index = idx  
         elif manager.current_state == 'SETTINGS_MENU':
             for idx, btn in enumerate([btn_bgm_minus, btn_sfx_minus, btn_fs_toggle, btn_settings_kembali]):
-                btn.update(mouse_pos)
                 if btn.is_hovered: manager.settings_index = idx
-            btn_bgm_plus.update(mouse_pos)
-            btn_sfx_plus.update(mouse_pos)
-        elif manager.current_state == 'CREDIT':
-            btn_credit_kembali.update(mouse_pos)
         elif manager.current_state == 'MODE_SELECT':
-            for idx, (mode_name, btn) in enumerate(btn_modes.items()):
-                btn.update(mouse_pos)
+            for idx, btn in enumerate(list(btn_modes.values())):
                 if btn.is_hovered: manager.mode_index = idx
-            btn_mode_kembali.update(mouse_pos)
-        elif manager.current_state == 'TUTORIAL':
-            btn_tut_paham.update(mouse_pos)
-            btn_tut_lewati.update(mouse_pos)
-        elif manager.current_state == 'PLAY':
-            for btn in [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, 
-                        btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_keluar]:
-                btn.update(mouse_pos)
         elif manager.current_state == 'CONFIRM':
-            btn_confirm_ya.update(mouse_pos)
-            btn_confirm_tidak.update(mouse_pos)
             if btn_confirm_ya.is_hovered: manager.confirm_index = 0
             elif btn_confirm_tidak.is_hovered: manager.confirm_index = 1
         elif manager.current_state == 'GAME_OVER':
             for idx, btn in enumerate(btn_go_options):
-                btn.update(mouse_pos)
                 if btn.is_hovered: manager.game_over_index = idx 
 
         # ==========================================
-        # EVENT HANDLING INTERCHANGEABLE TOTAL
+        # EVENT HANDLING (SINKRONISASI MOUSE + KEYBOARD)
         # ==========================================
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 is_running = False
                 
+            # --- INPUT KENDALI MOUSE CLICK ---
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
                     manager.skip_intro()
+                    
                 elif manager.current_state == 'MAIN_MENU':
-                    if btn_menu_options[0].is_clicked(event, mouse_pos): manager.current_state = 'MODE_SELECT'
-                    elif btn_menu_options[1].is_clicked(event, mouse_pos): manager.current_state = 'SETTINGS_MENU'
-                    elif btn_menu_options[2].is_clicked(event, mouse_pos): manager.current_state = 'CREDIT'
-                    elif btn_menu_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_APP')
+                    clicked = False
+                    if btn_menu_options[0].is_clicked(event, mouse_pos): manager.current_state = 'MODE_SELECT'; clicked = True
+                    elif btn_menu_options[1].is_clicked(event, mouse_pos): manager.current_state = 'SETTINGS_MENU'; clicked = True
+                    elif btn_menu_options[2].is_clicked(event, mouse_pos): manager.current_state = 'CREDIT'; clicked = True
+                    elif btn_menu_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_APP'); clicked = True
+                    if clicked: play_click()
+                    
                 elif manager.current_state == 'SETTINGS_MENU':
+                    clicked = True
                     if btn_bgm_minus.is_clicked(event, mouse_pos): manager.volume_bgm = max(0, manager.volume_bgm - 10)
                     elif btn_bgm_plus.is_clicked(event, mouse_pos):  manager.volume_bgm = min(100, manager.volume_bgm + 10)
                     elif btn_sfx_minus.is_clicked(event, mouse_pos): manager.volume_sfx = max(0, manager.volume_sfx - 10)
@@ -228,90 +286,133 @@ def main():
                         manager.is_fullscreen = not manager.is_fullscreen
                         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), (pygame.FULLSCREEN | pygame.SCALED) if manager.is_fullscreen else pygame.SCALED)
                     elif btn_settings_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'
+                    else: clicked = False
+                    if clicked: play_click()
+                    
                 elif manager.current_state == 'CREDIT':
-                    if btn_credit_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'
+                    if btn_credit_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'; play_click()
+                    
                 elif manager.current_state == 'MODE_SELECT':
-                    if btn_mode_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'
+                    clicked = False
+                    if btn_mode_kembali.is_clicked(event, mouse_pos): manager.current_state = 'MAIN_MENU'; clicked = True
                     for mode_name, btn in btn_modes.items():
                         if btn.is_clicked(event, mouse_pos) and not manager.get_lock_status(mode_name):
                             manager.selected_mode = mode_name
                             manager.generate_new_level()
                             player_stack.target_blueprint = manager.target_blueprint
+                            player_stack.clear_stack() 
                             manager.current_state = 'TUTORIAL'
                             manager.tutorial_step = 0
+                            clicked = True
+                    if clicked: play_click()
+                            
                 elif manager.current_state == 'TUTORIAL':
+                    clicked = True
                     if btn_tut_paham.is_clicked(event, mouse_pos):
                         manager.tutorial_step += 1
                         if manager.tutorial_step >= len(manager.tutorial_messages): manager.current_state = 'MEMORIZE'
                     elif btn_tut_lewati.is_clicked(event, mouse_pos): manager.current_state = 'MEMORIZE'
+                    else: clicked = False
+                    if clicked: play_click()
+                    
                 elif manager.current_state == 'PLAY':
-                    if btn_game_merah.is_clicked(event, mouse_pos):     player_stack.push("Merah")
-                    elif btn_game_biru.is_clicked(event, mouse_pos):    player_stack.push("Biru")
-                    elif btn_game_kuning.is_clicked(event, mouse_pos):  player_stack.push("Kuning")
-                    elif btn_game_hijau.is_clicked(event, mouse_pos):   player_stack.push("Hijau")
-                    elif btn_game_pop.is_clicked(event, mouse_pos):     player_stack.pop()
-                    elif btn_game_menyerah.is_clicked(event, mouse_pos): manager.trigger_confirm('MENYERAH')
-                    elif btn_game_keluar.is_clicked(event, mouse_pos):   manager.trigger_confirm('KELUAR_MENU')
+                    if btn_game_merah.is_clicked(event, mouse_pos):     player_stack.push("Merah"); play_push()
+                    elif btn_game_biru.is_clicked(event, mouse_pos):    player_stack.push("Biru"); play_push()
+                    elif btn_game_kuning.is_clicked(event, mouse_pos):  player_stack.push("Kuning"); play_push()
+                    elif btn_game_hijau.is_clicked(event, mouse_pos):   player_stack.push("Hijau"); play_push()
+                    elif btn_game_pop.is_clicked(event, mouse_pos):     player_stack.pop(); play_pop()
+                    elif btn_game_menyerah.is_clicked(event, mouse_pos): manager.trigger_confirm('MENYERAH'); play_click()
+                    elif btn_game_keluar.is_clicked(event, mouse_pos):   manager.trigger_confirm('KELUAR_MENU'); play_click()
                     elif btn_game_validate.is_clicked(event, mouse_pos):
                         player_stack.target_blueprint = manager.target_blueprint
                         if player_stack.check_match():
                             manager.handle_success()
                             player_stack.clear_stack()
+                            play_success()  
                         else:
                             manager.trigger_inner_monologue()
+                            play_error()    
+                            
                 elif manager.current_state == 'CONFIRM':
+                    clicked = True
                     if btn_confirm_ya.is_clicked(event, mouse_pos):
-                        if manager.confirm_type == 'MENYERAH': manager.trigger_game_over()
+                        if manager.confirm_type == 'MENYERAH': 
+                            manager.trigger_game_over()
                         elif manager.confirm_type == 'KELUAR_MENU':
                             manager.reset_to_menu()
-                            player_stack.clear_stack()
-                        elif manager.confirm_type == 'KELUAR_APP': is_running = False
+                            player_stack.clear_stack() 
+                        elif manager.confirm_type == 'KELUAR_APP': 
+                            is_running = False
                     elif btn_confirm_tidak.is_clicked(event, mouse_pos): manager.cancel_confirm()
+                    else: clicked = False
+                    if clicked: play_click()
+                            
                 elif manager.current_state == 'GAME_OVER':
-                    if btn_go_options[0].is_clicked(event, mouse_pos):   manager.restart_level()
-                    elif btn_go_options[1].is_clicked(event, mouse_pos): manager.current_state = 'MODE_SELECT'
-                    elif btn_go_options[2].is_clicked(event, mouse_pos): manager.reset_to_menu()
+                    clicked = True
+                    if btn_go_options[0].is_clicked(event, mouse_pos):   
+                        manager.restart_level()
+                        player_stack.clear_stack() 
+                    elif btn_go_options[1].is_clicked(event, mouse_pos): 
+                        manager.current_state = 'MODE_SELECT'
+                        player_stack.clear_stack() 
+                    elif btn_go_options[2].is_clicked(event, mouse_pos): 
+                        manager.reset_to_menu()
+                        player_stack.clear_stack() 
+                    else: clicked = False
+                    if clicked: play_click()
 
+            # --- INPUT KENDALI KEYBOARD ---
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE: is_running = False
+                
                 if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
                     if event.key in [pygame.K_RETURN, pygame.K_SPACE]: manager.skip_intro()
+                
                 elif manager.current_state == 'MAIN_MENU':
-                    if event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options)
-                    elif event.key == pygame.K_UP:   manager.menu_index = (manager.menu_index - 1) % len(manager.menu_options)
+                    if event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options); play_hover()
+                    elif event.key == pygame.K_UP:   manager.menu_index = (manager.menu_index - 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_RETURN:
+                        play_click()
                         if manager.menu_index == 0:   manager.current_state = 'MODE_SELECT'
                         elif manager.menu_index == 1: manager.current_state = 'SETTINGS_MENU'
                         elif manager.menu_index == 2: manager.current_state = 'CREDIT'
                         elif manager.menu_index == 3: manager.trigger_confirm('KELUAR_APP')
+                
                 elif manager.current_state == 'SETTINGS_MENU':
-                    if event.key == pygame.K_DOWN:   manager.settings_index = (manager.settings_index + 1) % len(manager.settings_options)
-                    elif event.key == pygame.K_UP:   manager.settings_index = (manager.settings_index - 1) % len(manager.settings_options)
+                    if event.key == pygame.K_DOWN:   manager.settings_index = (manager.settings_index + 1) % len(manager.settings_options); play_hover()
+                    elif event.key == pygame.K_UP:   manager.settings_index = (manager.settings_index - 1) % len(manager.settings_options); play_hover()
                     elif event.key == pygame.K_RIGHT:
+                        play_click()
                         if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 10)
                         elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 10)
                         elif manager.settings_index == 2: 
                             manager.is_fullscreen = True
                             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
                     elif event.key == pygame.K_LEFT:
+                        play_click()
                         if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 10)
                         elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 10)
                         elif manager.settings_index == 2: 
                             manager.is_fullscreen = False
                             screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
                     elif event.key == pygame.K_RETURN and manager.settings_index == 3:
-                        manager.current_state = 'MAIN_MENU'
+                        play_click(); manager.current_state = 'MAIN_MENU'
+                
                 elif manager.current_state in ['CREDIT']:
-                    if event.key == pygame.K_RETURN: manager.current_state = 'MAIN_MENU'
+                    if event.key == pygame.K_RETURN: play_click(); manager.current_state = 'MAIN_MENU'
+                
                 elif manager.current_state == 'TUTORIAL':
                     if event.key == pygame.K_RETURN or event.key == pygame.K_SPACE:
+                        play_click()
                         manager.tutorial_step += 1
                         if manager.tutorial_step >= len(manager.tutorial_messages): manager.current_state = 'MEMORIZE'
                     elif event.key == pygame.K_ESCAPE: manager.current_state = 'MEMORIZE'
+                
                 elif manager.current_state == 'MODE_SELECT':
-                    if event.key == pygame.K_DOWN:   manager.mode_index = (manager.mode_index + 1) % (len(manager.modes_list) + 1)
-                    elif event.key == pygame.K_UP:   manager.mode_index = (manager.mode_index - 1) % (len(manager.modes_list) + 1)
+                    if event.key == pygame.K_DOWN:   manager.mode_index = (manager.mode_index + 1) % (len(manager.modes_list) + 1); play_hover()
+                    elif event.key == pygame.K_UP:   manager.mode_index = (manager.mode_index - 1) % (len(manager.modes_list) + 1); play_hover()
                     elif event.key == pygame.K_RETURN:
+                        play_click()
                         if manager.mode_index == len(manager.modes_list): manager.current_state = 'MAIN_MENU'
                         else:
                             target_mode = manager.modes_list[manager.mode_index]
@@ -319,41 +420,57 @@ def main():
                                 manager.selected_mode = target_mode
                                 manager.generate_new_level()
                                 player_stack.target_blueprint = manager.target_blueprint
+                                player_stack.clear_stack() 
                                 manager.current_state = 'TUTORIAL'
                                 manager.tutorial_step = 0
+                
                 elif manager.current_state == 'PLAY':
-                    if event.key == pygame.K_r: player_stack.push("Merah")
-                    elif event.key == pygame.K_b: player_stack.push("Biru")
-                    elif event.key == pygame.K_y: player_stack.push("Kuning")
-                    elif event.key == pygame.K_g: player_stack.push("Hijau")
-                    elif event.key == pygame.K_BACKSPACE: player_stack.pop()
-                    elif event.key == pygame.K_m: manager.trigger_confirm('MENYERAH')
-                    elif event.key == pygame.K_q: manager.trigger_confirm('KELUAR_MENU')
+                    if event.key == pygame.K_r: player_stack.push("Merah"); play_push()
+                    elif event.key == pygame.K_b: player_stack.push("Biru"); play_push()
+                    elif event.key == pygame.K_y: player_stack.push("Kuning"); play_push()
+                    elif event.key == pygame.K_g: player_stack.push("Hijau"); play_push()
+                    elif event.key == pygame.K_BACKSPACE: player_stack.pop(); play_pop()
+                    elif event.key == pygame.K_m: manager.trigger_confirm('MENYERAH'); play_click()
+                    elif event.key == pygame.K_q: manager.trigger_confirm('KELUAR_MENU'); play_click()
                     elif event.key == pygame.K_RETURN:
                         player_stack.target_blueprint = manager.target_blueprint
                         if player_stack.check_match():
                             manager.handle_success()
                             player_stack.clear_stack()
+                            play_success()
                         else:
                             manager.trigger_inner_monologue()
+                            play_error()
+                
                 elif manager.current_state == 'CONFIRM':
-                    if event.key == pygame.K_LEFT: manager.confirm_index = 0
-                    elif event.key == pygame.K_RIGHT: manager.confirm_index = 1
+                    if event.key == pygame.K_LEFT: manager.confirm_index = 0; play_hover()
+                    elif event.key == pygame.K_RIGHT: manager.confirm_index = 1; play_hover()
                     elif event.key == pygame.K_y or (event.key == pygame.K_RETURN and manager.confirm_index == 0):
-                        if manager.confirm_type == 'MENYERAH': manager.trigger_game_over()
+                        play_click()
+                        if manager.confirm_type == 'MENYERAH': 
+                            manager.trigger_game_over()
                         elif manager.confirm_type == 'KELUAR_MENU':
                             manager.reset_to_menu()
-                            player_stack.clear_stack()
-                        elif manager.confirm_type == 'KELUAR_APP': is_running = False
+                            player_stack.clear_stack() 
+                        elif manager.confirm_type == 'KELUAR_APP': 
+                            is_running = False
                     elif event.key == pygame.K_n or event.key == pygame.K_ESCAPE or (event.key == pygame.K_RETURN and manager.confirm_index == 1):
-                        manager.cancel_confirm()
+                        play_click(); manager.cancel_confirm()
+                
                 elif manager.current_state == 'GAME_OVER':
-                    if event.key == pygame.K_DOWN:   manager.game_over_index = (manager.game_over_index + 1) % len(manager.game_over_options)
-                    elif event.key == pygame.K_UP:   manager.game_over_index = (manager.game_over_index - 1) % len(manager.game_over_options)
+                    if event.key == pygame.K_DOWN:   manager.game_over_index = (manager.game_over_index + 1) % len(manager.game_over_options); play_hover()
+                    elif event.key == pygame.K_UP:   manager.game_over_index = (manager.game_over_index - 1) % len(manager.game_over_options); play_hover()
                     elif event.key == pygame.K_RETURN:
-                        if manager.game_over_index == 0:   manager.restart_level()
-                        elif manager.game_over_index == 1: manager.current_state = 'MODE_SELECT'
-                        elif manager.game_over_index == 2: manager.reset_to_menu()
+                        play_click()
+                        if manager.game_over_index == 0:   
+                            manager.restart_level()
+                            player_stack.clear_stack() 
+                        elif manager.game_over_index == 1: 
+                            manager.current_state = 'MODE_SELECT'
+                            player_stack.clear_stack() 
+                        elif manager.game_over_index == 2: 
+                            manager.reset_to_menu()
+                            player_stack.clear_stack() 
 
         # ---- 3. LOGIKA UPDATE ----
         manager.update_timer(delta_time)
@@ -362,15 +479,14 @@ def main():
         elif manager.current_state == 'MEMORIZE':
             monster.current_x = monster.start_x
 
-        # ---- 4. RENDER VISUAL V1.2 (REKONSTRUKSI TOTAL MAIN MENU) ----
+        # ---- 4. RENDER VISUAL V1.2 ----
         if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             screen.fill((0, 0, 0)) 
         elif manager.current_state == 'MAIN_MENU':
-            # CELAH TERPENUHI: Jika asset video frame tersedia, render sebagai full screen background loop
-            if len(background_frames) > 0:
-                screen.blit(background_frames[current_frame_index], (0, 0))
+            if cached_frame_img:
+                screen.blit(cached_frame_img, (0, 0))
             else:
-                screen.fill(COLOR_BG_SAFE) # Fallback jika folder kosong
+                screen.fill(COLOR_BG_SAFE) 
         elif manager.current_state == 'PLAY' and manager.state_timer < 15000:
             screen.fill(COLOR_BG_DANGER)
         else:
@@ -406,19 +522,25 @@ def main():
                 screen.blit(txt_disc, (SCREEN_WIDTH//2 - txt_disc.get_width()//2, 120 + (i * 32)))
 
         elif manager.current_state == 'MAIN_MENU':
-            # CELAH TERPENUHI: Mengganti teks statis menu utama dengan aset gambar logo orisinal "angSSatan"
             if menu_logo_image:
-                # Sesuai gambar referensi: Letakkan logo di bagian kanan atas kanvas
                 screen.blit(menu_logo_image, (440, 60))
             else:
-                # Fallback teks jika file menu_logo.png belum diletakkan pemain
                 title_text = font_title.render("angSSatan v1.2", True, COLOR_RED)
                 screen.blit(title_text, (480, 100))
                 
-            # Merender jajaran tombol interaktif yang sudah direlokasi ke sisi kiri layar
             for idx, btn in enumerate(btn_menu_options):
                 if idx == manager.menu_index: btn.current_color = (60, 70, 100)
                 btn.draw(screen)
+
+            # ==========================================
+            # CELAH TERPENUHI: MERENDER WATERMARK VERSI GAME (KANAN BAWAH)
+            # ==========================================
+            # Menggunakan font_tut (Consolas 18) berwarna abu-abu redup agar estetis dan tidak mendistrak menu utama
+            version_text = font_tut.render("angSSatan v1.2.0", True, (130, 130, 140))
+            # Menghitung koordinat sudut kanan bawah dengan padding aman 15 piksel dari tepi
+            version_x = SCREEN_WIDTH - version_text.get_width() - 15
+            version_y = SCREEN_HEIGHT - version_text.get_height() - 15
+            screen.blit(version_text, (version_x, version_y))
 
         elif manager.current_state == 'SETTINGS_MENU':
             title_set = font_title.render("PENGATURAN", True, COLOR_YELLOW)
@@ -521,7 +643,6 @@ def main():
             screen.blit(ui_text, (20, 20))
             screen.blit(info_text, (20, 60))
 
-        # TOP-LAYER MASTER INJECTION: FADE EFFECT FOR INTROS
         if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             fade_surface.set_alpha(manager.fade_alpha)
             screen.blit(fade_surface, (0, 0))

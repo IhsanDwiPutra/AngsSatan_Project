@@ -4,20 +4,17 @@ from core.score_manager import ScoreManager
 
 class GameManager:
     def __init__(self):
-        # State: INTRO_STUDIO, INTRO_PRODUCER, INTRO_DISCLAIMER, MAIN_MENU, SETTINGS_MENU, CREDIT, MODE_SELECT, TUTORIAL, MEMORIZE, PLAY, GAME_OVER, CONFIRM
         self.current_state = 'INTRO_STUDIO'
         self.previous_state = 'INTRO_STUDIO'
-        self.confirm_type = ''  # 'MENYERAH', 'KELUAR_MENU', 'KELUAR_APP'
+        self.confirm_type = '' 
         
         self.score = 0
         self.level = 1
         self.selected_mode = 'EASY'
         
-        # Pengaturan Sistem Global
         self.volume_bgm = 70       
         self.volume_sfx = 80       
         self.is_fullscreen = False 
-        
         self.settings_index = 0
         self.settings_options = ['BGM VOLUME', 'SFX VOLUME', 'FULLSCREEN', 'KEMBALI']
         
@@ -26,18 +23,24 @@ class GameManager:
         self.new_record_achieved = False
         self.indicator_light = False 
 
-        # CONFIGURATION DURASI INTRO DINAMIS SINKRON
         self.intro_durations = {
             'INTRO_STUDIO': 3000,      
             'INTRO_PRODUCER': 3000,    
             'INTRO_DISCLAIMER': 8000   
         }
-        
         self.state_timer = self.intro_durations['INTRO_STUDIO']
         
         self.fade_alpha = 255 
         self.fade_state = 'FADE_IN' 
         self.fade_speed = 255 
+
+        self.tutorial_step = 0
+        self.tutorial_messages = [
+            ["FASE 1: HAFALAN", "Ingat baik-baik urutan warna menara target", "yang muncul di layar dalam beberapa detik!"],
+            ["FASE 2: EKSEKUSI", "Gunakan tombol warna / Klik Mouse untuk", "membangun kembali menara dari bawah ke atas."],
+            ["ATURAN STACK (LIFO)", "Jika salah susun, Anda WAJIB menekan POP", "untuk menghapus balok paling atas dahulu!"],
+            ["VALIDASI AKHIR", "Jika susunan sudah yakin sama dengan target,", "klik VALIDASI atau tekan ENTER untuk menang!"]
+        ]
 
         self.disclaimer_messages = [
             "PERINGATAN: GAME INI MENGANDUNG UNSUR HOROR",
@@ -48,13 +51,6 @@ class GameManager:
             "",
             "Kebijaksanaan pemain sangat diharapkan. Jika Anda merasa",
             "tidak nyaman, harap segera hentikan permainan."
-        ]
-
-        self.tutorial_messages = [
-            ["FASE 1: HAFALAN", "Ingat baik-baik urutan warna menara target", "yang muncul di layar dalam beberapa detik!"],
-            ["FASE 2: EKSEKUSI", "Gunakan tombol warna / Klik Mouse untuk", "membangun kembali menara dari bawah ke atas."],
-            ["ATURAN STACK (LIFO)", "Jika salah susun, Anda WAJIB menekan POP", "untuk menghapus balok paling atas dahulu!"],
-            ["VALIDASI AKHIR", "Jika susunan sudah yakin sama dengan target,", "klik VALIDASI atau tekan ENTER untuk menang!"]
         ]
 
         self.inner_monologue_text = ""
