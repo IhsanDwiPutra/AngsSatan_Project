@@ -191,7 +191,9 @@ def main():
 
     btn_bgm_slider = Button(350, 195, 180, 25, "", (0, 0, 0), (0, 0, 0)) 
     btn_sfx_slider = Button(350, 255, 180, 25, "", (0, 0, 0), (0, 0, 0)) 
-    btn_fs_toggle  = Button(430, 310, 80, 35, "UBAH", (50, 60, 80), (80, 100, 140))
+    # --- RENOVASI v2.1.0: Tombol UBAH dan Kotak OFF dilebur menjadi SATU tombol lebar! ---
+    # Teks sengaja dikosongkan ("") agar bisa kita render dinamis (ON/OFF) di perulangan visual
+    btn_fs_toggle  = Button(350, 310, 160, 35, "", (50, 60, 80), (80, 100, 140))
     btn_settings_kembali = Button(SCREEN_WIDTH//2 - 120, 400, 240, 40, "KEMBALI KE MENU", (80, 80, 80), (50, 50, 50))
     btn_credit_kembali = Button(SCREEN_WIDTH//2 - 140, 490, 280, 50, "KEMBALI KE MENU", (40, 45, 60), (50, 50, 50), font_size=22)
 
@@ -850,23 +852,30 @@ def main():
                 sfx_pct_surf = font_small.render(f"{manager.volume_sfx}%", True, COLOR_WHITE)
             screen.blit(sfx_pct_surf, (rect_sfx_input.x + 8, rect_sfx_input.y + 6))
 
-            # --- BARIS 3: FULLSCREEN TOGGLE ---
+            # --- BARIS 3: FULLSCREEN TOGGLE (RENOVASI v2.1.0) ---
             fs_txt = font_menu.render("FULLSCREEN", True, COLOR_WHITE)
             screen.blit(fs_txt, (panel_x + 40, 315))
             
-            fs_status_rect = pygame.Rect(350, 310, 60, 35)
-            pygame.draw.rect(screen, (60, 60, 70), fs_status_rect)
-            pygame.draw.rect(screen, COLOR_WHITE, fs_status_rect, 1)
-            fs_status_txt = font_small.render("ON" if manager.is_fullscreen else "OFF", True, COLOR_WHITE)
-            screen.blit(fs_status_txt, (fs_status_rect.x + (60 - fs_status_txt.get_width())//2, fs_status_rect.y + 10))
-
+            # Logika pewarnaan saat tombol di-hover (pakai mouse atau panah keyboard)
             if manager.settings_index == 2:
                 btn_fs_toggle.current_color = (60, 70, 100)
                 pygame.draw.rect(screen, COLOR_RED, (btn_fs_toggle.rect.x - 2, btn_fs_toggle.rect.y - 2, btn_fs_toggle.rect.width + 4, btn_fs_toggle.rect.height + 4), 2)
             else:
                 btn_fs_toggle.current_color = (40, 45, 60)
+            
+            # Render tombol fisik utama
             btn_fs_toggle.draw(screen)
-            pygame.draw.rect(screen, COLOR_WHITE, (btn_fs_toggle.rect.x, btn_fs_toggle.rect.y, btn_fs_toggle.rect.width, btn_fs_toggle.rect.height), 1)
+            pygame.draw.rect(screen, COLOR_WHITE, btn_fs_toggle.rect, 1)
+            
+            # Trik Visual: Cetak teks ON atau OFF secara dinamis tepat di tengah tombol!
+            status_str = "ON" if manager.is_fullscreen else "OFF"
+            status_color = COLOR_YELLOW if manager.is_fullscreen else COLOR_WHITE
+            status_surf = font_menu.render(status_str, True, status_color)
+            
+            # Rumus matematika untuk 'Absolute Center Alignment' teks di dalam kotak tombol
+            text_x = btn_fs_toggle.rect.x + (btn_fs_toggle.rect.width - status_surf.get_width()) // 2
+            text_y = btn_fs_toggle.rect.y + 6
+            screen.blit(status_surf, (text_x, text_y))
 
             # --- BARIS 4: KEMBALI KE MENU ---
             if manager.settings_index == 3:
