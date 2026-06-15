@@ -121,11 +121,34 @@ def main():
             settings_bg_image = pygame.image.load(img_settings_bg_path).convert()
             settings_bg_image = pygame.transform.scale(settings_bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         except pygame.error: pass
+        
+    # === S1: PEMUAT ASET MONSTER JUMPSCARE ===
+    img_monster_path = os.path.join("assets", "sprites", "monster.png")
+    if not os.path.exists(img_monster_path): img_monster_path = os.path.join("assets", "sprites", "monster.jpg")
+    monster_image = None
+    if os.path.exists(img_monster_path):
+        try:
+            # Menyimpan gambar mentah murni agar tidak pecah saat di-scale up
+            monster_image = pygame.image.load(img_monster_path).convert_alpha()
+        except pygame.error: pass    
     
     img_tutorial_bg_path = os.path.join("assets", "sprites", "tutorial_bg.png")
     if not os.path.exists(img_tutorial_bg_path): 
         img_tutorial_bg_path = os.path.join("assets", "sprites", "tutorial_bg.jpg")
     tutorial_bg_image = None
+    # === S1: PEMUAT BACKGROUND MODE SPESIFIK ===
+    bg_modes_images = {}
+    for m in ['EASY', 'MEDIUM', 'HARD', 'IMPOSSIBLE', 'UNLIMITED']:
+        # Fallback semua mode unlimited ke easy per instruksi Anda
+        file_name = "easy_bg.png" if m == 'UNLIMITED' else f"{m.lower()}_bg.png"
+        m_path = os.path.join("assets", "sprites", file_name)
+        if not os.path.exists(m_path): m_path = os.path.join("assets", "sprites", file_name.replace('.png', '.jpg'))
+        
+        if os.path.exists(m_path):
+            try:
+                img = pygame.image.load(m_path).convert()
+                bg_modes_images[m] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            except pygame.error: pass
     if os.path.exists(img_tutorial_bg_path):
         try:
             tutorial_bg_image = pygame.image.load(img_tutorial_bg_path).convert()
@@ -171,15 +194,20 @@ def main():
     }
     btn_mode_kembali  = Button(480, 430, 280, 60, "[ESC] KEMBALI", (40, 45, 60), (120, 40, 40), font_size=22)
 
-    btn_game_merah    = Button(580, 120, 180, 40, "[R] MERAH", COLOR_RED, (150, 30, 30))
-    btn_game_biru     = Button(580, 170, 180, 40, "[B] BIRU", COLOR_BLUE, (30, 60, 150))
-    btn_game_kuning   = Button(580, 220, 180, 40, "[Y] KUNING", COLOR_YELLOW, (150, 140, 30))
-    btn_game_hijau    = Button(580, 270, 180, 40, "[G] HIJAU", COLOR_GREEN, (30, 130, 30))
-    btn_game_pop      = Button(580, 330, 180, 40, "[BACK] POP", (100, 100, 100), (70, 70, 70))
-    btn_game_validate = Button(580, 380, 180, 40, "[ENTER] VALIDASI", (40, 140, 70), (20, 90, 45))
-    btn_game_menyerah = Button(580, 440, 180, 40, "[M] MENYERAH", (180, 40, 40), (120, 30, 30))
-    # Mengubah tombol [Q] MENU menjadi [ESC] JEDA sesuai instruksi
-    btn_game_jeda     = Button(580, 490, 180, 40, "[ESC] JEDA", (80, 60, 40), (120, 80, 50)) 
+    # === S2: REPOSISI TOMBOL GAMEPLAY ===
+    # Tombol Tumpukan Warna di Kiri Bawah
+    btn_game_merah    = Button(20, 260, 140, 35, "[R] MERAH", COLOR_RED, (150, 30, 30), font_size=16)
+    btn_game_biru     = Button(20, 305, 140, 35, "[B] BIRU", COLOR_BLUE, (30, 60, 150), font_size=16)
+    btn_game_kuning   = Button(20, 350, 140, 35, "[Y] KUNING", COLOR_YELLOW, (150, 140, 30), font_size=16)
+    btn_game_hijau    = Button(20, 395, 140, 35, "[G] HIJAU", COLOR_GREEN, (30, 130, 30), font_size=16)
+    btn_game_pop      = Button(20, 440, 140, 35, "[BACK] POP", (100, 100, 100), (70, 70, 70), font_size=16)
+    
+    # Tombol Validasi di Tengah Bawah (Menyatu dengan Panel Box nanti)
+    btn_game_validate = Button(SCREEN_WIDTH//2 - 90, 465, 180, 35, "[ENTER] VALIDASI", (40, 140, 70), (20, 90, 45), font_size=16)
+    
+    # Tombol Menyerah & Jeda di Kanan Bawah
+    btn_game_menyerah = Button(SCREEN_WIDTH - 180, 400, 160, 35, "[M] MENYERAH", (180, 40, 40), (120, 30, 30), font_size=16)
+    btn_game_jeda     = Button(SCREEN_WIDTH - 180, 445, 160, 35, "[ESC] JEDA", (80, 60, 40), (120, 80, 50), font_size=16)
 
     # Membangun 4 Tombol Menu Jeda
     btn_pause_options = [
@@ -198,6 +226,11 @@ def main():
         Button(SCREEN_WIDTH//2 - 150, 400, 300, 40, "KEMBALI KE MENU", (40, 45, 60), (120, 40, 40))
     ]
 
+    # === S4 MEMORIZE PHASE (FASE PENGINGAT) BUTTONS ===
+    # Layout tombol berjarak lebar di bagian bawah layar per FASE PENGINGAT.jpg
+    btn_mem_kembali = Button(SCREEN_WIDTH//2 - 200, 520, 180, 45, "[ESC] KEMBALI", (40, 45, 60), (120, 50, 50), font_size=18)
+    btn_mem_lanjut  = Button(SCREEN_WIDTH//2 + 20, 520, 180, 45, "[ENTER] LANJUT", (40, 45, 60), (60, 120, 80), font_size=18)
+    # ==================================================
     btn_tut_kembali   = Button(SCREEN_WIDTH//2 - 160, 480, 140, 45, "[ESC] KEMBALI", (40, 45, 60), (150, 50, 50), font_size=18)
     btn_tut_lanjut    = Button(SCREEN_WIDTH//2 + 20, 480, 140, 45, "[ENTER] LANJUT", (40, 45, 60), (60, 150, 80), font_size=18)
 
@@ -276,7 +309,7 @@ def main():
         elif manager.current_state == 'SETTINGS_MENU': active_buttons = [btn_bgm_slider, btn_sfx_slider, btn_fs_toggle, btn_settings_kembali]
         elif manager.current_state == 'CREDIT': active_buttons = [btn_credit_kembali]
         elif manager.current_state == 'MODE_SELECT': active_buttons = list(btn_modes.values()) + [btn_mode_kembali]
-        elif manager.current_state == 'TUTORIAL': active_buttons = [btn_tut_kembali, btn_tut_lanjut]
+        elif manager.current_state == 'MEMORIZE': active_buttons = [btn_mem_lanjut, btn_mem_kembali] # Incision!
         elif manager.current_state == 'PLAY': active_buttons = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]
         elif manager.current_state == 'CONFIRM': active_buttons = [btn_confirm_ya, btn_confirm_tidak]
         elif manager.current_state == 'GAME_OVER': active_buttons = btn_go_options
@@ -300,6 +333,10 @@ def main():
             for idx, btn in enumerate(list(btn_modes.values())):
                 if btn.is_hovered: manager.mode_index = idx
             if btn_mode_kembali.is_hovered: manager.mode_index = len(manager.modes_list)
+        elif manager.current_state == 'MEMORIZE':
+            # Sinkronisasi hover keyboard (ENTER/ESC) per image
+            if btn_mem_lanjut.is_hovered: manager.current_state = 'MEMORIZE'; btn_mem_lanjut.is_hovered=True; btn_mem_kembali.is_hovered=False
+            elif btn_mem_kembali.is_hovered: manager.current_state = 'MEMORIZE'; btn_mem_kembali.is_hovered=True; btn_mem_lanjut.is_hovered=False
         elif manager.current_state == 'CONFIRM':
             if btn_confirm_ya.is_hovered: manager.confirm_index = 0
             elif btn_confirm_tidak.is_hovered: manager.confirm_index = 1
@@ -396,6 +433,22 @@ def main():
                         clicked = True
                     if clicked: play_click()
                     
+                # === S4 MEMORIZE CLICKS (MOUSE) ===
+                elif manager.current_state == 'MEMORIZE':
+                    clicked = False
+                    if btn_mem_kembali.is_clicked(event, mouse_pos): 
+                        # ESCituharus Kembali pada bagian PEMILIHAN MODE per user prompt
+                        manager.current_state = 'MODE_SELECT'
+                        clicked = True
+                    elif btn_mem_lanjut.is_clicked(event, mouse_pos):
+                        # Tombol speedrun: Masuk gameplay tanpa menunggu waktu habis
+                        manager.current_state = 'PLAY'
+                        # manager.generate_new_level() -> HAPUS INI JIKA ADA! Gunakan level yang sudah di-generate tutorial/intro
+                        manager.state_timer = manager.play_duration # Reset timer untuk fase gameplay
+                        manager.indicator_light = True
+                        clicked = True
+                    if clicked: play_click()    
+                    
                 elif manager.current_state == 'PLAY':
                     if btn_game_merah.is_clicked(event, mouse_pos):     player_stack.push("Merah"); play_push()
                     elif btn_game_biru.is_clicked(event, mouse_pos):    player_stack.push("Biru"); play_push()
@@ -439,6 +492,15 @@ def main():
                     elif btn_go_options[2].is_clicked(event, mouse_pos): 
                         manager.reset_to_menu()
                         player_stack.clear_stack() 
+                    else: clicked = False
+                    if clicked: play_click()
+                    
+                elif manager.current_state == 'PAUSE':
+                    clicked = True
+                    if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = manager.previous_state
+                    elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack()
+                    elif btn_pause_options[2].is_clicked(event, mouse_pos): manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
+                    elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_MENU')
                     else: clicked = False
                     if clicked: play_click()
 
@@ -546,6 +608,20 @@ def main():
                                 player_stack.clear_stack() 
                                 manager.current_state = 'TUTORIAL'
                                 manager.tutorial_step = 0
+                                
+                # === S4 MEMORIZE KEYS (KEYBOARD) ===
+                elif manager.current_state == 'MEMORIZE':
+                    if event.key == pygame.K_ESCAPE: 
+                        # ESCituharus Kembali pada PEMILIHAN MODE
+                        manager.current_state = 'MODE_SELECT'
+                        play_click()
+                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE]:
+                        # Speedrun! Loncat ke fase gameplay
+                        manager.current_state = 'PLAY'
+                        # manager.generate_new_level() -> HAPUS INI JIKA ADA! 
+                        manager.state_timer = manager.play_duration 
+                        manager.indicator_light = True
+                        play_click()
                 
                 elif manager.current_state == 'PLAY':
                     if event.key == pygame.K_ESCAPE: manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
@@ -595,7 +671,18 @@ def main():
                             player_stack.clear_stack() 
                         elif manager.game_over_index == 2: 
                             manager.reset_to_menu()
-                            player_stack.clear_stack() 
+                            player_stack.clear_stack()
+                            
+                elif manager.current_state == 'PAUSE':
+                    if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = manager.previous_state
+                    elif event.key == pygame.K_DOWN: manager.pause_index = (manager.pause_index + 1) % len(manager.pause_options); play_hover()
+                    elif event.key == pygame.K_UP: manager.pause_index = (manager.pause_index - 1) % len(manager.pause_options); play_hover()
+                    elif event.key == pygame.K_RETURN:
+                        play_click()
+                        if manager.pause_index == 0: manager.current_state = manager.previous_state
+                        elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack()
+                        elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
+                        elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU') 
 
         # ---- 3. LOGIKA UPDATE ----
         # Cegat logika waktu GameManager dan buat simulasi pemuatan memori 3 Detik!
@@ -642,8 +729,18 @@ def main():
             # Untuk sekarang kita set Fallback murni
             if mode_bg_image: screen.blit(mode_bg_image, (0, 0)) # Fallback sementara pakai BG Mode
             else: screen.fill(COLOR_BG_SAFE)
-        elif manager.current_state in ['PLAY', 'PAUSE', 'GAME_OVER'] and manager.state_timer < 15000:
-            screen.fill(COLOR_BG_DANGER)
+        # === S3: BACKGROUND MODE SPESIFIK SAAT GAMEPLAY ===
+        elif manager.current_state in ['PLAY', 'PAUSE', 'GAME_OVER']:
+            # Panggil gambar spesifik berdasarkan mode yang sedang aktif
+            mode_img = bg_modes_images.get(manager.selected_mode)
+            if mode_img: screen.blit(mode_img, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE)
+            
+            # Tetap pertahankan aura horor merah berkedip saat waktu kritis!
+            if manager.state_timer < 15000:
+                danger_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+                danger_surf.fill((150, 0, 0, 80)) # Transparan merah darah
+                screen.blit(danger_surf, (0,0))
         else:
             screen.fill(COLOR_BG_SAFE)
         
@@ -1042,29 +1139,200 @@ def main():
                     elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
                     elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU')
 
-        elif manager.current_state in ['MEMORIZE', 'PLAY', 'PAUSE', 'GAME_OVER']:
-            monster.draw(screen)
-            if manager.current_state == 'MEMORIZE':
-                tower_renderer.draw_player_tower(screen, manager.target_blueprint)
-                state_desc = f"MODE: {manager.selected_mode} | INGAT CETAK BIRU!"
-            else:
-                tower_renderer.draw_player_tower(screen, player_stack.items)
-                state_desc = f"MODE: {manager.selected_mode}"
+        # ==========================================
+        # CUSTOM RENDER FASE PENGINGAT (MEMORIZE PHASE)
+        # ==========================================
+        elif manager.current_state == 'MEMORIZE':
+            # Overlay transparan pembawa aura horor
+            mem_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            mem_overlay.fill((10, 10, 15, 180)) 
+            screen.blit(mem_overlay, (0,0))
+            
+            seconds = max(0, manager.state_timer // 1000)
+
+            # --- BAGIAN ATAS (HUD) ---
+            txt_time = font_menu.render(f"WAKTU: {seconds:02d}", True, COLOR_WHITE)
+            screen.blit(txt_time, (30, 25))
+            
+            txt_hud_right = font_menu.render(f"LV: {manager.level} | SCORE: {manager.score}", True, COLOR_WHITE)
+            screen.blit(txt_hud_right, (SCREEN_WIDTH - 30 - txt_hud_right.get_width(), 25))
+
+            # --- BAGIAN TENGAH (PANDUAN HAFALAN) ---
+            t_mem = font_title.render("MEMORIZE", True, COLOR_RED)
+            t_hafalk = font_menu.render("PERHATIKAN DAN HAFALKAN URUTAN TOWER", True, COLOR_WHITE)
+            screen.blit(t_mem, (SCREEN_WIDTH//2 - t_mem.get_width()//2, 80))
+            screen.blit(t_hafalk, (SCREEN_WIDTH//2 - t_hafalk.get_width()//2, 130))
+
+            # MANUAL TOWER DRAWING (Murni Blok Warna, Tanpa Teks)
+            blueprint = manager.target_blueprint
+            block_w, block_h = 80, 40
+            start_x = SCREEN_WIDTH // 2 - block_w // 2
+            start_y = 420 
+            color_map = {"Merah": COLOR_RED, "Biru": COLOR_BLUE, "Kuning": COLOR_YELLOW, "Hijau": COLOR_GREEN}
+
+            for i, color_name in enumerate(blueprint):
+                y = start_y - (i * (block_h + 2))
+                color = color_map.get(color_name, COLOR_WHITE)
+                rect = pygame.Rect(start_x, y, block_w, block_h)
+                pygame.draw.rect(screen, color, rect)
+                pygame.draw.rect(screen, COLOR_WHITE, rect, 1) 
+
+            # Teks Bawah Tower
+            t_hafalkan = font_menu.render("HAFALKAN URUTAN INI!", True, COLOR_YELLOW)
+            t_will_vanish = font_small.render("Tower akan hilang setelah Waktu habis.", True, (180, 180, 180))
+            screen.blit(t_hafalkan, (SCREEN_WIDTH//2 - t_hafalkan.get_width()//2, 460))
+            screen.blit(t_will_vanish, (SCREEN_WIDTH//2 - t_will_vanish.get_width()//2, 490))
+
+            # --- BAGIAN BAWAH (TOMBOL KEMBALI & LANJUT) ---
+            btn_mem_kembali.current_color = (180, 60, 60) if btn_mem_kembali.is_hovered else (40, 45, 60)
+            btn_mem_lanjut.current_color = (60, 180, 80) if btn_mem_lanjut.is_hovered else (40, 45, 60)
+            
+            if btn_mem_lanjut.is_hovered:
+                screen.blit(font_menu.render(">", True, COLOR_GREEN), (btn_mem_lanjut.rect.x - 25, btn_mem_lanjut.rect.y + 10))
+            elif btn_mem_kembali.is_hovered:
+                screen.blit(font_menu.render(">", True, COLOR_RED), (btn_mem_kembali.rect.x - 25, btn_mem_kembali.rect.y + 10))
+
+            btn_mem_kembali.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, btn_mem_kembali.rect, 1)
+            btn_mem_lanjut.draw(screen)
+            pygame.draw.rect(screen, COLOR_WHITE, btn_mem_lanjut.rect, 1)
+
+        # ==========================================
+        # RESTORE LOGIKA PLAY DAN PAUSE ORIGINAL
+        # ==========================================
+        # ==========================================
+        # CUSTOM RENDER GAMEPLAY (THE NEW CORE HUD v1.2.9)
+        # ==========================================
+        elif manager.current_state in ['PLAY', 'PAUSE']:
+            # AMKPUTASI: monster.draw(screen) dimatikan agar garis hitam lama menghilang!
+            
+            # --- EFEK VIGNETTE & MONSTER DINAMIS (MATEMATIKA EKSPONENSIAL) ---
+            jarak_pct = max(0.0, min(1.0, 1.0 - (manager.state_timer / manager.play_duration)))
+            
+            # KUNCI JUMPSCARE: Pangkat 5 (Power 5) membuat rasio SANGAT LAMBAT membesar,
+            # lalu tiba-tiba meledak menjadi raksasa di detik-detik terakhir!
+            efek_kejutan = jarak_pct ** 5 
+            
+            alpha_vignette = int(50 + (efek_kejutan * 180)) # Merah pekat hanya muncul di akhir waktu
+            vignette = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            vignette.fill((50, 0, 0, alpha_vignette)) 
+            screen.blit(vignette, (0, 0))
+
+            # --- RENDER MONSTER SCALE-UP ---
+            if monster_image:
+                # Skala dibatasi ketat: Awal 5% (0.05), Maksimal 250% (2.5) HANYA saat waktu habis!
+                scale_factor = min(2.5, 0.05 + (2.45 * efek_kejutan)) 
+                new_w = int(monster_image.get_width() * scale_factor)
+                new_h = int(monster_image.get_height() * scale_factor)
+                scaled_monster = pygame.transform.scale(monster_image, (new_w, new_h))
+                
+                mon_x = SCREEN_WIDTH//2 - new_w//2
+                mon_y = SCREEN_HEIGHT//2 - new_h//2 - 40 
+                screen.blit(scaled_monster, (mon_x, mon_y))
+            
+            if manager.current_state == 'PLAY':
+                # --- 1. HUD KIRI ATAS ---
+                txt_lv = font_menu.render(f"LV: {manager.level}", True, COLOR_WHITE)
+                txt_skor = font_menu.render(f"SKOR: {manager.score}", True, COLOR_WHITE)
+                txt_mode = font_menu.render(f"MODE: {manager.selected_mode}", True, COLOR_YELLOW)
+                screen.blit(txt_lv, (20, 20))
+                screen.blit(txt_skor, (20, 50))
+                screen.blit(txt_mode, (20, 80))
+
+                # --- 2. TUGAS AKTIF (KIRI TENGAH) ---
+                txt_tugas = font_small.render("TUGAS AKTIF", True, COLOR_WHITE)
+                txt_val_pola = font_small.render("[X] Validasi pola warna", True, (255, 100, 100))
+                txt_susun = font_small.render("    Susun urutan warna", True, (180, 180, 180))
+                txt_sesuai = font_small.render("    sesuai target.", True, (180, 180, 180))
+                screen.blit(txt_tugas, (20, 150))
+                screen.blit(txt_val_pola, (20, 170))
+                screen.blit(txt_susun, (20, 190))
+                screen.blit(txt_sesuai, (20, 210))
+
+                # --- 3. WAKTU HOROR (TENGAH ATAS) ---
+                seconds = max(0, manager.state_timer // 1000)
+                ms = max(0, manager.state_timer % 1000)
+                txt_waktu = font_title.render(f"{seconds:02d}:{ms:03d}", True, COLOR_RED)
+                # Diberi efek bayangan hitam agar jelas di background apapun
+                shadow_waktu = font_title.render(f"{seconds:02d}:{ms:03d}", True, (0, 0, 0))
+                screen.blit(shadow_waktu, (SCREEN_WIDTH//2 - shadow_waktu.get_width()//2 + 2, 32))
+                screen.blit(txt_waktu, (SCREEN_WIDTH//2 - txt_waktu.get_width()//2, 30))
+
+                # --- 4. SKOR TERTINGGI (KANAN ATAS) ---
+                txt_hi_label = font_small.render("SKOR TERTINGGI:", True, (180, 180, 180))
+                txt_hi_val = font_menu.render(str(manager.high_score), True, COLOR_WHITE)
+                screen.blit(txt_hi_label, (SCREEN_WIDTH - 20 - txt_hi_label.get_width(), 20))
+                screen.blit(txt_hi_val, (SCREEN_WIDTH - 20 - txt_hi_val.get_width(), 40))
+
+                # --- 5. RENOVASI TOTAL: PANEL VALIDASI POLA WARNA (TENGAH BAWAH) ---
+                # Panel dibuat lebih tinggi (h=220 dari h=175 lama) agar stack ngga terhalang tombol!
+                panel_val = pygame.Rect(SCREEN_WIDTH//2 - 120, 290, 240, 220)
+                pygame.draw.rect(screen, (20, 20, 25, 220), panel_val) 
+                pygame.draw.rect(screen, (150, 80, 80), panel_val, 2)
+                
+                txt_val_title = font_small.render("VALIDASI POLA WARNA", True, COLOR_RED)
+                screen.blit(txt_val_title, (SCREEN_WIDTH//2 - txt_val_title.get_width()//2, 300))
+
+                txt_stackmu = font_small.render("STACK-MU", True, COLOR_WHITE)
+                screen.blit(txt_stackmu, (SCREEN_WIDTH//2 - txt_stackmu.get_width()//2, 330))
+
+                # Render Visual Stack Dinamis: Dipastikan tidak menabrak tombol VALIDASI di Y=465
+                color_map = {"Merah": COLOR_RED, "Biru": COLOR_BLUE, "Kuning": COLOR_YELLOW, "Hijau": COLOR_GREEN}
+                
+                # Area gambar stack dibatasi ketat ruangnya antara Y=350 sampai Y=445
+                max_stack = max(5, len(manager.target_blueprint))
+                block_h = min(15, int(90 / max_stack)) # Tinggi dinamis, mengecil jika level susah (stack banyak)
+                visual_stack_y_base = 445 # Titik fondasi paling bawah (Sangat aman dari tombol Validasi di 465)
+                
+                for i, c_name in enumerate(player_stack.items):
+                    b_y = visual_stack_y_base - (i * (block_h + 2)) 
+                    if b_y > 345: # Penjaga agar tumpukan tidak tembus ke atas menabrak judul STACK-MU
+                        pygame.draw.rect(screen, color_map.get(c_name, COLOR_WHITE), (SCREEN_WIDTH//2 - 60, b_y, 120, block_h))
+                        pygame.draw.rect(screen, COLOR_WHITE, (SCREEN_WIDTH//2 - 60, b_y, 120, block_h), 1) # Outline retro
+
+                # --- 6. RENDER SEMUA TOMBOL GAMEPLAY ---
                 for btn in [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, 
                             btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]:
                     btn.draw(screen)
+                    # Border Retro
+                    pygame.draw.rect(screen, COLOR_WHITE, btn.rect, 1)
+
+                # --- 7. RADAR JARAK MONSTER (BAWAH TENGAH) ---
+                jarak_pct = max(0.0, min(1.0, 1.0 - (manager.state_timer / manager.play_duration)))
+                bar_w, bar_h = 500, 15
+                bar_x = SCREEN_WIDTH//2 - bar_w//2 + 60
+                bar_y = SCREEN_HEIGHT - 35
+                
+                txt_jarak = font_small.render("JARAK MONSTER", True, COLOR_RED)
+                screen.blit(txt_jarak, (bar_x - 120, bar_y + 1))
+                
+                # Dasar Radar Gelap
+                pygame.draw.rect(screen, (40, 20, 20), (bar_x, bar_y, bar_w, bar_h))
+                # Isi Darah Mendekat
+                pygame.draw.rect(screen, (180, 40, 40), (bar_x, bar_y, int(bar_w * jarak_pct), bar_h))
+                pygame.draw.rect(screen, COLOR_RED, (bar_x, bar_y, bar_w, bar_h), 1)
+                
+                # Garis Scanner Radar
+                for i in range(1, 25):
+                    pygame.draw.line(screen, (80, 30, 30), (bar_x + (i * 20), bar_y), (bar_x + (i * 20), bar_y + bar_h))
+                
+                txt_pct = font_small.render(f"{int(jarak_pct * 100)}%", True, COLOR_WHITE)
+                screen.blit(txt_pct, (bar_x + bar_w + 10, bar_y + 1))
+
+            # Dialog Batin Karakter saat Salah Susun
             if manager.inner_monologue_text != "":
                 txt_batin_surf = font_batin.render(manager.inner_monologue_text, True, (255, 120, 120))
-                screen.blit(txt_batin_surf, (SCREEN_WIDTH//2 - txt_batin_surf.get_width()//2, 560))
+                screen.blit(txt_batin_surf, (SCREEN_WIDTH//2 - txt_batin_surf.get_width()//2, 530))
+            
+            # Lampu Indikator Kecil di Pojok Kanan Atas
             if manager.indicator_light:
-                lamp_color = (50, 255, 50) if manager.current_state == 'PLAY' else (255, 255, 50)
-                pygame.draw.circle(screen, lamp_color, (750, 40), 15)
-            seconds = manager.state_timer // 1000
-            ms = manager.state_timer % 1000
-            ui_text = font_menu.render(f"LV: {manager.level} | SCORE: {manager.score} | TIME: {seconds:02d}:{ms:03d}", True, COLOR_WHITE)
-            info_text = font_menu.render(state_desc, True, COLOR_WHITE)
-            screen.blit(ui_text, (20, 20))
-            screen.blit(info_text, (20, 60))
+                lamp_color = (180, 40, 40) if manager.state_timer < 15000 else (50, 200, 50)
+                pygame.draw.circle(screen, lamp_color, (SCREEN_WIDTH - 30, 80), 8)
+                
+            # Render HUD Polos khusus saat layar tertimpa Menu PAUSE
+            if manager.current_state == 'PAUSE':
+                info_text = font_menu.render("DIJEDA", True, COLOR_WHITE)
+                screen.blit(info_text, (20, 20))
 
         if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
             fade_surface.set_alpha(manager.fade_alpha)
