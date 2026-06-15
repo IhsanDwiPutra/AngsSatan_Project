@@ -149,6 +149,16 @@ def main():
                 img = pygame.image.load(m_path).convert()
                 bg_modes_images[m] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
             except pygame.error: pass
+        # === S1: BG FASE PENGINGAT (MEMORIZE) ===
+        img_memorize_bg_path = os.path.join("assets", "sprites", "fase_memorize.png")
+        if not os.path.exists(img_memorize_bg_path): 
+            img_memorize_bg_path = os.path.join("assets", "sprites", "fase_memorize.jpg")
+        memorize_bg_image = None
+        if os.path.exists(img_memorize_bg_path):
+            try:
+                memorize_bg_image = pygame.image.load(img_memorize_bg_path).convert()
+                memorize_bg_image = pygame.transform.scale(memorize_bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            except pygame.error: pass    
     if os.path.exists(img_tutorial_bg_path):
         try:
             tutorial_bg_image = pygame.image.load(img_tutorial_bg_path).convert()
@@ -1140,50 +1150,77 @@ def main():
                     elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU')
 
         # ==========================================
-        # CUSTOM RENDER FASE PENGINGAT (MEMORIZE PHASE)
+        # CUSTOM RENDER FASE PENGINGAT (MEMORIZE PHASE v1.2.9)
         # ==========================================
         elif manager.current_state == 'MEMORIZE':
-            # Overlay transparan pembawa aura horor
+            # Render Background Khusus Fase Ini
+            if memorize_bg_image: screen.blit(memorize_bg_image, (0, 0))
+            else: screen.fill(COLOR_BG_SAFE)
+            
             mem_overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            mem_overlay.fill((10, 10, 15, 180)) 
+            mem_overlay.fill((10, 10, 15, 200)) # Aura gelap 
             screen.blit(mem_overlay, (0,0))
             
-            seconds = max(0, manager.state_timer // 1000)
-
-            # --- BAGIAN ATAS (HUD) ---
-            txt_time = font_menu.render(f"WAKTU: {seconds:02d}", True, COLOR_WHITE)
-            screen.blit(txt_time, (30, 25))
+            # --- 1. BAGIAN KIRI ATAS & KANAN ATAS (HUD) ---
+            txt_fase = font_menu.render("FASE: MEMORIZE", True, (150, 150, 150))
+            screen.blit(txt_fase, (30, 25))
             
-            txt_hud_right = font_menu.render(f"LV: {manager.level} | SCORE: {manager.score}", True, COLOR_WHITE)
+            txt_hud_right = font_menu.render(f"LV: {manager.level}   SCORE: {manager.score}", True, COLOR_WHITE)
             screen.blit(txt_hud_right, (SCREEN_WIDTH - 30 - txt_hud_right.get_width(), 25))
 
-            # --- BAGIAN TENGAH (PANDUAN HAFALAN) ---
-            t_mem = font_title.render("MEMORIZE", True, COLOR_RED)
-            t_hafalk = font_menu.render("PERHATIKAN DAN HAFALKAN URUTAN TOWER", True, COLOR_WHITE)
-            screen.blit(t_mem, (SCREEN_WIDTH//2 - t_mem.get_width()//2, 80))
-            screen.blit(t_hafalk, (SCREEN_WIDTH//2 - t_hafalk.get_width()//2, 130))
+            # --- 2. WAKTU RAKSASA (TENGAH ATAS) ---
+            # Menggunakan desimal agar lebih presisi dan estetik seperti "4.0s"
+            sec_float = max(0.0, manager.state_timer / 1000.0)
+            txt_time = font_title.render(f"{sec_float:.1f}s", True, COLOR_RED)
+            screen.blit(txt_time, (SCREEN_WIDTH//2 - txt_time.get_width()//2, 20))
 
-            # MANUAL TOWER DRAWING (Murni Blok Warna, Tanpa Teks)
+            # Garis Pembatas Atas ala Retro UI
+            pygame.draw.line(screen, (80, 80, 90), (0, 70), (SCREEN_WIDTH, 70), 2)
+
+            # --- 3. TEKS PANDUAN (TENGAH ATAS BAWAH GARIS) ---
+            t_mem = font_title.render("MEMORIZE", True, COLOR_WHITE)
+            t_hafalk = font_small.render("PERHATIKAN DAN HAFALKAN URUTAN TOWER", True, (180, 180, 180))
+            screen.blit(t_mem, (SCREEN_WIDTH//2 - t_mem.get_width()//2, 85))
+            screen.blit(t_hafalk, (SCREEN_WIDTH//2 - t_hafalk.get_width()//2, 135))
+
+            # --- 4. TOWER DRAWING DINAMIS (TENGAH-TENGAH) ---
             blueprint = manager.target_blueprint
-            block_w, block_h = 80, 40
+            max_blocks = max(7, len(blueprint))
+            
+            # Kalkulasi cerdas agar menara selalu di tengah (Tidak tembus teks atas/bawah)
+            # Area render aman untuk blok: Y=170 sampai Y=380 (Tinggi 210px)
+            block_w = 140
+            block_h = min(40, int(200 / max_blocks)) # Jika blok banyak (misal 15), tinggi akan otomatis gepeng!
+            spacing = block_h + 3
+            
+            # Menghitung titik awal Y agar tumpukannya selalu "Center-Aligned" secara vertikal
+            total_stack_height = len(blueprint) * spacing
+            center_y_area = 170 + (210 // 2) 
+            start_y = center_y_area + (total_stack_height // 2) - block_h
             start_x = SCREEN_WIDTH // 2 - block_w // 2
-            start_y = 420 
+            
             color_map = {"Merah": COLOR_RED, "Biru": COLOR_BLUE, "Kuning": COLOR_YELLOW, "Hijau": COLOR_GREEN}
 
             for i, color_name in enumerate(blueprint):
-                y = start_y - (i * (block_h + 2))
+                y = start_y - (i * spacing)
                 color = color_map.get(color_name, COLOR_WHITE)
                 rect = pygame.Rect(start_x, y, block_w, block_h)
                 pygame.draw.rect(screen, color, rect)
-                pygame.draw.rect(screen, COLOR_WHITE, rect, 1) 
+                pygame.draw.rect(screen, COLOR_WHITE, rect, 2) 
 
-            # Teks Bawah Tower
-            t_hafalkan = font_menu.render("HAFALKAN URUTAN INI!", True, COLOR_YELLOW)
-            t_will_vanish = font_small.render("Tower akan hilang setelah Waktu habis.", True, (180, 180, 180))
-            screen.blit(t_hafalkan, (SCREEN_WIDTH//2 - t_hafalkan.get_width()//2, 460))
-            screen.blit(t_will_vanish, (SCREEN_WIDTH//2 - t_will_vanish.get_width()//2, 490))
+            # --- 5. PANEL TEKS BOX (TENGAH BAWAH) ---
+            panel_w, panel_h = 440, 75
+            panel_x = SCREEN_WIDTH//2 - panel_w//2
+            panel_y = 415
+            pygame.draw.rect(screen, (20, 20, 25), (panel_x, panel_y, panel_w, panel_h))
+            pygame.draw.rect(screen, (150, 50, 50), (panel_x, panel_y, panel_w, panel_h), 2)
+            
+            t_hafalkan = font_menu.render("HAFALKAN URUTAN INI!", True, COLOR_RED)
+            t_will_vanish = font_small.render("Tower akan hilang setelah Waktu habis.", True, COLOR_WHITE)
+            screen.blit(t_hafalkan, (SCREEN_WIDTH//2 - t_hafalkan.get_width()//2, panel_y + 15))
+            screen.blit(t_will_vanish, (SCREEN_WIDTH//2 - t_will_vanish.get_width()//2, panel_y + 45))
 
-            # --- BAGIAN BAWAH (TOMBOL KEMBALI & LANJUT) ---
+            # --- 6. BAGIAN BAWAH (TOMBOL KEMBALI & LANJUT) ---
             btn_mem_kembali.current_color = (180, 60, 60) if btn_mem_kembali.is_hovered else (40, 45, 60)
             btn_mem_lanjut.current_color = (60, 180, 80) if btn_mem_lanjut.is_hovered else (40, 45, 60)
             
@@ -1209,11 +1246,11 @@ def main():
             # --- EFEK VIGNETTE & MONSTER DINAMIS (MATEMATIKA EKSPONENSIAL) ---
             jarak_pct = max(0.0, min(1.0, 1.0 - (manager.state_timer / manager.play_duration)))
             
-            # KUNCI JUMPSCARE: Pangkat 5 (Power 5) membuat rasio SANGAT LAMBAT membesar,
+            # KUNCI JUMPSCARE: Pangkat 5 membuat ukuran SANGAT LAMBAT membesar di awal,
             # lalu tiba-tiba meledak menjadi raksasa di detik-detik terakhir!
             efek_kejutan = jarak_pct ** 5 
             
-            alpha_vignette = int(50 + (efek_kejutan * 180)) # Merah pekat hanya muncul di akhir waktu
+            alpha_vignette = int(50 + (efek_kejutan * 180)) # Merah pekat tertunda
             vignette = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             vignette.fill((50, 0, 0, alpha_vignette)) 
             screen.blit(vignette, (0, 0))
@@ -1276,17 +1313,19 @@ def main():
                 txt_stackmu = font_small.render("STACK-MU", True, COLOR_WHITE)
                 screen.blit(txt_stackmu, (SCREEN_WIDTH//2 - txt_stackmu.get_width()//2, 330))
 
-                # Render Visual Stack Dinamis: Dipastikan tidak menabrak tombol VALIDASI di Y=465
+                # Render Visual Stack Dinamis: Jarak Aman Mutlak dari Tombol Validasi!
                 color_map = {"Merah": COLOR_RED, "Biru": COLOR_BLUE, "Kuning": COLOR_YELLOW, "Hijau": COLOR_GREEN}
                 
-                # Area gambar stack dibatasi ketat ruangnya antara Y=350 sampai Y=445
+                # Ruang aman stack dibatasi dari Y=350 sampai Y=445 (Tinggi = 95px). 
+                # Tombol validasi ada di Y=465, jadi tidak akan pernah bertabrakan!
                 max_stack = max(5, len(manager.target_blueprint))
-                block_h = min(15, int(90 / max_stack)) # Tinggi dinamis, mengecil jika level susah (stack banyak)
-                visual_stack_y_base = 445 # Titik fondasi paling bawah (Sangat aman dari tombol Validasi di 465)
+                block_h = min(15, int(90 / max_stack)) # Otomatis mengecil jika tumpukan belasan!
+                spacing = block_h + 2
+                visual_stack_y_base = 445 # Titik fondasi paling bawah (Aman dari tombol)
                 
                 for i, c_name in enumerate(player_stack.items):
-                    b_y = visual_stack_y_base - (i * (block_h + 2)) 
-                    if b_y > 345: # Penjaga agar tumpukan tidak tembus ke atas menabrak judul STACK-MU
+                    b_y = visual_stack_y_base - (i * spacing) 
+                    if b_y > 345: # Mencegah stack tumpah ke luar batas atas panel
                         pygame.draw.rect(screen, color_map.get(c_name, COLOR_WHITE), (SCREEN_WIDTH//2 - 60, b_y, 120, block_h))
                         pygame.draw.rect(screen, COLOR_WHITE, (SCREEN_WIDTH//2 - 60, b_y, 120, block_h), 1) # Outline retro
 
