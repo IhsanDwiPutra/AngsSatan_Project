@@ -221,12 +221,14 @@ def main():
     btn_game_menyerah = Button(SCREEN_WIDTH - 180, 400, 160, 35, "[M] MENYERAH", (180, 40, 40), (120, 30, 30), font_size=16)
     btn_game_jeda     = Button(SCREEN_WIDTH - 180, 445, 160, 35, "[ESC] JEDA", (80, 60, 40), (120, 80, 50), font_size=16)
 
-    # Membangun 4 Tombol Menu Jeda
+    # Membangun 4 Tombol Menu Jeda — posisi dihitung dari tengah panel (panel_h=420, panel_y=center)
+    _pause_panel_y = SCREEN_HEIGHT//2 - 210  # = panel_y saat panel_h=420
+    _pause_btn_x   = SCREEN_WIDTH//2 - 140
     btn_pause_options = [
-        Button(SCREEN_WIDTH//2 - 140, 260, 280, 40, "LANJUTKAN", (40, 45, 60), (60, 70, 100)),
-        Button(SCREEN_WIDTH//2 - 140, 310, 280, 40, "ULANG LEVEL", (40, 45, 60), (60, 70, 100)),
-        Button(SCREEN_WIDTH//2 - 140, 360, 280, 40, "PENGATURAN", (40, 45, 60), (60, 70, 100)),
-        Button(SCREEN_WIDTH//2 - 140, 410, 280, 40, "KEMBALI KE MENU", (40, 45, 60), (120, 40, 40))
+        Button(_pause_btn_x, _pause_panel_y + 100, 280, 40, "LANJUTKAN", (40, 45, 60), (60, 70, 100)),
+        Button(_pause_btn_x, _pause_panel_y + 155, 280, 40, "ULANG LEVEL", (40, 45, 60), (60, 70, 100)),
+        Button(_pause_btn_x, _pause_panel_y + 210, 280, 40, "PENGATURAN", (40, 45, 60), (60, 70, 100)),
+        Button(_pause_btn_x, _pause_panel_y + 265, 280, 40, "KEMBALI KE MENU", (40, 45, 60), (120, 40, 40))
     ]
 
     btn_confirm_ya    = Button(SCREEN_WIDTH//2 - 130, 320, 110, 40, "YA [Y]", (140, 40, 40), (190, 50, 50))
@@ -254,10 +256,24 @@ def main():
     input_text = ""
     rect_bgm_input = pygame.Rect(545, 192, 50, 30) 
     rect_sfx_input = pygame.Rect(545, 252, 50, 30)
+    # Sistem tahan-tekan slider keyboard
+    held_key_slider = None      # 'LEFT' atau 'RIGHT'
+    held_key_timer  = 0         # Akumulator sebelum repeat mulai
+    held_key_repeat = 0         # Akumulator antar repeat
+    HELD_DELAY      = 400       # ms sebelum repeat mulai
+    HELD_INTERVAL   = 80        # ms antar setiap tick repeat
     
     # Variabel Index Navigasi (Untuk Sinkronisasi Keyboard & Mouse)
-    tutorial_btn_index = 1 # 0: Kembali, 1: Lanjut
-    memorize_btn_index = 1 # 0: Kembali, 1: Lanjut
+    tutorial_btn_index = 1  # 0: Kembali, 1: Lanjut
+    memorize_btn_index = 1  # 0: Kembali, 1: Lanjut
+    # Wasit Navigasi Gameplay — 3 Kolom
+    # 0: Kiri (MERAH/BIRU/KUNING/HIJAU/POP), 1: Tengah (VALIDASI), 2: Kanan (MENYERAH/JEDA)
+    play_col_index = 0
+    play_row_index = 0
+    # Penyimpan state PLAY agar LANJUTKAN selalu kembali ke gameplay
+    play_return_state = 'PLAY'
+    # Akumulator waktu bermain aktif (hanya dihitung saat PLAY, bukan PAUSE/MEMORIZE)
+    total_play_time_ms = 0
 
     is_running = True 
 
@@ -357,6 +373,16 @@ def main():
         elif manager.current_state == 'MEMORIZE':
             for idx, btn in enumerate([btn_mem_kembali, btn_mem_lanjut]):
                 if btn.is_hovered: memorize_btn_index = idx
+        # --- SUNTIKAN v2.1.3: SYNC MOUSE GAMEPLAY 3 KOLOM DINAMIS ---
+        elif manager.current_state == 'PLAY':
+            # Kolom 0 (Kiri): Warna + POP
+            for idx, btn in enumerate([btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop]):
+                if btn.is_hovered: play_col_index = 0; play_row_index = idx
+            # Kolom 1 (Tengah): Validasi
+            if btn_game_validate.is_hovered: play_col_index = 1; play_row_index = 0
+            # Kolom 2 (Kanan): Menyerah, Jeda
+            for idx, btn in enumerate([btn_game_menyerah, btn_game_jeda]):
+                if btn.is_hovered: play_col_index = 2; play_row_index = idx
         # ------------------------------------------
         elif manager.current_state == 'CONFIRM':
             if btn_confirm_ya.is_hovered: manager.confirm_index = 0
@@ -367,6 +393,12 @@ def main():
         elif manager.current_state == 'PAUSE':
             for idx, btn in enumerate(btn_pause_options):
                 if btn.is_hovered: manager.pause_index = idx
+        elif manager.current_state == 'PLAY':
+            for idx, btn in enumerate([btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop]):
+                if btn.is_hovered: play_col_index = 0; play_row_index = idx
+            if btn_game_validate.is_hovered: play_col_index = 1; play_row_index = 0
+            for idx, btn in enumerate([btn_game_menyerah, btn_game_jeda]):
+                if btn.is_hovered: play_col_index = 2; play_row_index = idx
 
         # ==========================================
         # EVENT HANDLING (INPUT GANDA + SLIDER & TYPING v1.2.5)
@@ -477,7 +509,7 @@ def main():
                     elif btn_game_hijau.is_clicked(event, mouse_pos):   player_stack.push("Hijau"); play_push()
                     elif btn_game_pop.is_clicked(event, mouse_pos):     player_stack.pop(); play_pop()
                     elif btn_game_menyerah.is_clicked(event, mouse_pos): manager.trigger_confirm('MENYERAH'); play_click()
-                    elif btn_game_jeda.is_clicked(event, mouse_pos):     manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
+                    elif btn_game_jeda.is_clicked(event, mouse_pos):     play_return_state = 'PLAY'; manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
                     elif btn_game_validate.is_clicked(event, mouse_pos):
                         player_stack.target_blueprint = manager.target_blueprint
                         if player_stack.check_match():
@@ -495,7 +527,8 @@ def main():
                             manager.trigger_game_over()
                         elif manager.confirm_type == 'KELUAR_MENU':
                             manager.reset_to_menu()
-                            player_stack.clear_stack() 
+                            player_stack.clear_stack()
+                            total_play_time_ms = 0 
                         elif manager.confirm_type == 'KELUAR_APP': 
                             is_running = False
                     elif btn_confirm_tidak.is_clicked(event, mouse_pos): manager.cancel_confirm()
@@ -506,7 +539,8 @@ def main():
                     clicked = True
                     if btn_go_options[0].is_clicked(event, mouse_pos):   
                         manager.restart_level()
-                        player_stack.clear_stack() 
+                        player_stack.clear_stack()
+                        total_play_time_ms = 0 
                     elif btn_go_options[1].is_clicked(event, mouse_pos): 
                         manager.current_state = 'MODE_SELECT'
                         player_stack.clear_stack() 
@@ -518,8 +552,8 @@ def main():
                     
                 elif manager.current_state == 'PAUSE':
                     clicked = True
-                    if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = manager.previous_state
-                    elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack()
+                    if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = play_return_state
+                    elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack(); total_play_time_ms = 0
                     elif btn_pause_options[2].is_clicked(event, mouse_pos): manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
                     elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_MENU')
                     else: clicked = False
@@ -539,13 +573,20 @@ def main():
                         rel_x = mouse_pos[0] - btn_sfx_slider.rect.x
                         manager.volume_sfx = max(0, min(100, int((rel_x / btn_sfx_slider.rect.width) * 100)))
 
+            # --- EVENT: TOMBOL DILEPAS (STOP TAHAN-TEKAN SLIDER) ---
+            elif event.type == pygame.KEYUP:
+                if event.key in [pygame.K_LEFT, pygame.K_RIGHT]:
+                    held_key_slider = None
+                    held_key_timer  = 0
+                    held_key_repeat = 0
+
             # --- INPUT KENDALI KEYBOARD ---
             elif event.type == pygame.KEYDOWN:
                 if manager.current_state in ['INTRO_STUDIO', 'INTRO_PRODUCER', 'INTRO_DISCLAIMER']:
                     if event.key in [pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE]: manager.skip_intro()
                 
                 elif manager.current_state == 'MAIN_MENU':
-                    if event.key == pygame.K_ESCAPE: is_running = False
+                    if event.key == pygame.K_ESCAPE: manager.trigger_confirm('KELUAR_APP'); play_click()
                     elif event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_UP:   manager.menu_index = (manager.menu_index - 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_RETURN:
@@ -576,19 +617,29 @@ def main():
                         elif event.key == pygame.K_DOWN:   manager.settings_index = (manager.settings_index + 1) % len(manager.settings_options); play_hover()
                         elif event.key == pygame.K_UP:   manager.settings_index = (manager.settings_index - 1) % len(manager.settings_options); play_hover()
                         elif event.key == pygame.K_RIGHT:
-                            play_click()
-                            if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 5) # Slider presisi +5%
-                            elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 5)
-                            elif manager.settings_index == 2: 
+                            if manager.settings_index in [0, 1]:
+                                held_key_slider = 'RIGHT'
+                                held_key_timer  = 0
+                                held_key_repeat = 0
+                                if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 5)
+                                elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 5)
+                                play_click()
+                            elif manager.settings_index == 2:
                                 manager.is_fullscreen = True
                                 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.SCALED)
+                                play_click()
                         elif event.key == pygame.K_LEFT:
-                            play_click()
-                            if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 5) # Slider presisi -5%
-                            elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 5)
-                            elif manager.settings_index == 2: 
+                            if manager.settings_index in [0, 1]:
+                                held_key_slider = 'LEFT'
+                                held_key_timer  = 0
+                                held_key_repeat = 0
+                                if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 5)
+                                elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 5)
+                                play_click()
+                            elif manager.settings_index == 2:
                                 manager.is_fullscreen = False
                                 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
+                                play_click()
                         elif event.key == pygame.K_RETURN:
                             play_click()
                             if manager.settings_index == 2:
@@ -647,8 +698,10 @@ def main():
                         manager.indicator_light = True
                         play_click()
                 
+                # --- RENOVASI v2.1.3: LOGIKA NAVIGASI GAMEPLAY ---
                 elif manager.current_state == 'PLAY':
-                    if event.key == pygame.K_ESCAPE: manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
+                    # Shortcut Murni (Tetap aktif)
+                    if event.key == pygame.K_ESCAPE: play_return_state = 'PLAY'; manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
                     elif event.key == pygame.K_r: player_stack.push("Merah"); play_push()
                     elif event.key == pygame.K_b: player_stack.push("Biru"); play_push()
                     elif event.key == pygame.K_y: player_stack.push("Kuning"); play_push()
@@ -656,15 +709,48 @@ def main():
                     elif event.key == pygame.K_BACKSPACE: player_stack.pop(); play_pop()
                     elif event.key == pygame.K_m: manager.trigger_confirm('MENYERAH'); play_click()
                     elif event.key == pygame.K_q: manager.trigger_confirm('KELUAR_MENU'); play_click()
+                    
+                  # --- LOGIKA NAVIGASI GRID 3 KOLOM ---
+                    # Kiri(0): MERAH/BIRU/KUNING/HIJAU/POP  Tengah(1): VALIDASI  Kanan(2): MENYERAH/JEDA
+                    elif event.key == pygame.K_LEFT:
+                        if play_col_index > 0:
+                            play_col_index -= 1
+                            # Saat kembali ke kiri, row tetap (clamp agar tidak out of range)
+                            if play_col_index == 0: play_row_index = min(play_row_index, 4)
+                            elif play_col_index == 1: play_row_index = 0  # Tengah hanya 1 tombol
+                        play_hover()
+                    elif event.key == pygame.K_RIGHT:
+                        if play_col_index < 2:
+                            play_col_index += 1
+                            # Saat pindah kolom, reset row ke 0 agar selalu valid
+                            if play_col_index == 1: play_row_index = 0  # Tengah hanya 1 tombol
+                            elif play_col_index == 2: play_row_index = 0
+                        play_hover()
+                    elif event.key == pygame.K_UP:
+                        if play_col_index == 0: play_row_index = (play_row_index - 1) % 5
+                        elif play_col_index == 1: play_row_index = 0  # Tengah tetap di 0
+                        elif play_col_index == 2: play_row_index = (play_row_index - 1) % 2
+                        play_hover()
+                    elif event.key == pygame.K_DOWN:
+                        if play_col_index == 0: play_row_index = (play_row_index + 1) % 5
+                        elif play_col_index == 1: play_row_index = 0  # Tengah tetap di 0
+                        elif play_col_index == 2: play_row_index = (play_row_index + 1) % 2
+                        play_hover()
+
                     elif event.key == pygame.K_RETURN:
-                        player_stack.target_blueprint = manager.target_blueprint
-                        if player_stack.check_match():
-                            manager.handle_success()
-                            player_stack.clear_stack()
-                            play_success()
-                        else:
-                            manager.trigger_inner_monologue()
-                            play_error()
+                        if play_col_index == 0:  # Eksekusi Kolom Kiri
+                            if play_row_index == 0: player_stack.push("Merah"); play_push()
+                            elif play_row_index == 1: player_stack.push("Biru"); play_push()
+                            elif play_row_index == 2: player_stack.push("Kuning"); play_push()
+                            elif play_row_index == 3: player_stack.push("Hijau"); play_push()
+                            elif play_row_index == 4: player_stack.pop(); play_pop()
+                        elif play_col_index == 1:  # Eksekusi Kolom Tengah
+                            player_stack.target_blueprint = manager.target_blueprint
+                            if player_stack.check_match(): manager.handle_success(); player_stack.clear_stack(); play_success()
+                            else: manager.trigger_inner_monologue(); play_error()
+                        elif play_col_index == 2:  # Eksekusi Kolom Kanan
+                            if play_row_index == 0: manager.trigger_confirm('MENYERAH'); play_click()
+                            elif play_row_index == 1: play_return_state = 'PLAY'; manager.previous_state = manager.current_state; manager.current_state = 'PAUSE'; play_click()
                 
                 elif manager.current_state == 'CONFIRM':
                     if event.key == pygame.K_ESCAPE: play_click(); manager.cancel_confirm()
@@ -689,7 +775,8 @@ def main():
                         play_click()
                         if manager.game_over_index == 0:   
                             manager.restart_level()
-                            player_stack.clear_stack() 
+                            player_stack.clear_stack()
+                            total_play_time_ms = 0 
                         elif manager.game_over_index == 1: 
                             manager.current_state = 'MODE_SELECT'
                             player_stack.clear_stack() 
@@ -697,17 +784,36 @@ def main():
                             manager.reset_to_menu()
                             player_stack.clear_stack()
                             
+               # --- LOGIKA KEYBOARD LAYAR JEDA ---
                 elif manager.current_state == 'PAUSE':
-                    if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = manager.previous_state
+                    if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = play_return_state
                     elif event.key == pygame.K_DOWN: manager.pause_index = (manager.pause_index + 1) % len(manager.pause_options); play_hover()
                     elif event.key == pygame.K_UP: manager.pause_index = (manager.pause_index - 1) % len(manager.pause_options); play_hover()
                     elif event.key == pygame.K_RETURN:
                         play_click()
-                        if manager.pause_index == 0: manager.current_state = manager.previous_state
-                        elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack()
+                        if manager.pause_index == 0: manager.current_state = play_return_state
+                        elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack(); total_play_time_ms = 0
                         elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
                         elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU') 
 
+        # ---- LOGIKA TAHAN-TEKAN SLIDER KEYBOARD ----
+        if held_key_slider and manager.current_state == 'SETTINGS_MENU' and not input_active:
+            if manager.settings_index in [0, 1]:
+                held_key_timer += delta_time
+                if held_key_timer >= HELD_DELAY:
+                    held_key_repeat += delta_time
+                    if held_key_repeat >= HELD_INTERVAL:
+                        held_key_repeat = 0
+                        if held_key_slider == 'RIGHT':
+                            if manager.settings_index == 0: manager.volume_bgm = min(100, manager.volume_bgm + 1)
+                            elif manager.settings_index == 1: manager.volume_sfx = min(100, manager.volume_sfx + 1)
+                        elif held_key_slider == 'LEFT':
+                            if manager.settings_index == 0: manager.volume_bgm = max(0, manager.volume_bgm - 1)
+                            elif manager.settings_index == 1: manager.volume_sfx = max(0, manager.volume_sfx - 1)
+            else:
+                # Bukan slider (misal index 2 fullscreen), langsung reset agar tidak mengulang
+                held_key_slider = None
+        
         # ---- 3. LOGIKA UPDATE ----
         # Cegat logika waktu GameManager dan buat simulasi pemuatan memori 3 Detik!
         if manager.current_state == 'LOADING':
@@ -717,7 +823,11 @@ def main():
                 loading_timer = 0
         else:
             manager.update_timer(delta_time)
-            
+
+        # Akumulasi waktu aktif — berhenti saat PAUSE/JEDA
+        if manager.current_state == 'PLAY':
+            total_play_time_ms += delta_time
+
         if manager.current_state == 'PLAY':
             monster.update(manager.state_timer, manager.play_duration)
         elif manager.current_state == 'MEMORIZE':
@@ -1156,27 +1266,6 @@ def main():
 
         elif manager.current_state == 'GAME_OVER':
             pass # UI Game Over lama dihancurkan, diganti dengan Overlay Visual PS1 di bagian bawah
-        
-        # --- LOGIKA TOMBOL LAYAR JEDA ---
-        elif manager.current_state == 'PAUSE':
-            clicked = True
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = manager.previous_state
-                elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack()
-                elif btn_pause_options[2].is_clicked(event, mouse_pos): manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
-                elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_MENU')
-                else: clicked = False
-                if clicked: play_click()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE: play_click(); manager.current_state = manager.previous_state
-                elif event.key == pygame.K_DOWN: manager.pause_index = (manager.pause_index + 1) % len(manager.pause_options); play_hover()
-                elif event.key == pygame.K_UP: manager.pause_index = (manager.pause_index - 1) % len(manager.pause_options); play_hover()
-                elif event.key == pygame.K_RETURN:
-                    play_click()
-                    if manager.pause_index == 0: manager.current_state = manager.previous_state
-                    elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack()
-                    elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
-                    elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU')
 
         # ==========================================
         # CUSTOM RENDER FASE PENGINGAT (MEMORIZE PHASE v1.2.9)
@@ -1358,12 +1447,35 @@ def main():
                         pygame.draw.rect(screen, color_map.get(c_name, COLOR_WHITE), (SCREEN_WIDTH//2 - 60, b_y, 120, block_h))
                         pygame.draw.rect(screen, COLOR_WHITE, (SCREEN_WIDTH//2 - 60, b_y, 120, block_h), 1) # Outline retro
 
-                # --- 6. RENDER SEMUA TOMBOL GAMEPLAY ---
-                for btn in [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, 
-                            btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]:
+                # --- 6. RENDER TOMBOL 3 KOLOM ---
+                # Kolom 0 = Kiri, Kolom 1 = Tengah (VALIDASI saja), Kolom 2 = Kanan
+                left_col_btns   = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop]
+                mid_col_btns    = [btn_game_validate]
+                right_col_btns  = [btn_game_menyerah, btn_game_jeda]
+
+                for idx, btn in enumerate(left_col_btns):
                     btn.draw(screen)
-                    # Border Retro
-                    pygame.draw.rect(screen, COLOR_WHITE, btn.rect, 1)
+                    if play_col_index == 0 and play_row_index == idx:
+                        pygame.draw.rect(screen, COLOR_WHITE, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                        screen.blit(font_menu.render(">", True, COLOR_WHITE), (btn.rect.x - 20, btn.rect.y + 5))
+                    else:
+                        pygame.draw.rect(screen, (100, 100, 100), btn.rect, 1)
+
+                for idx, btn in enumerate(mid_col_btns):
+                    btn.draw(screen)
+                    if play_col_index == 1:
+                        pygame.draw.rect(screen, COLOR_WHITE, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                        screen.blit(font_menu.render(">", True, COLOR_WHITE), (btn.rect.x - 20, btn.rect.y + 5))
+                    else:
+                        pygame.draw.rect(screen, (100, 100, 100), btn.rect, 1)
+
+                for idx, btn in enumerate(right_col_btns):
+                    btn.draw(screen)
+                    if play_col_index == 2 and play_row_index == idx:
+                        pygame.draw.rect(screen, COLOR_WHITE, (btn.rect.x - 2, btn.rect.y - 2, btn.rect.width + 4, btn.rect.height + 4), 2)
+                        screen.blit(font_menu.render(">", True, COLOR_WHITE), (btn.rect.x - 20, btn.rect.y + 5))
+                    else:
+                        pygame.draw.rect(screen, (100, 100, 100), btn.rect, 1)
 
                 # --- 7. RADAR JARAK MONSTER (BAWAH TENGAH) ---
                 jarak_pct = max(0.0, min(1.0, 1.0 - (manager.state_timer / manager.play_duration)))
@@ -1415,7 +1527,7 @@ def main():
             pause_overlay.fill((10, 10, 15, 160)) 
             screen.blit(pause_overlay, (0,0))
             
-            panel_w, panel_h = 360, 360
+            panel_w, panel_h = 420, 360
             panel_x = SCREEN_WIDTH//2 - panel_w//2
             panel_y = SCREEN_HEIGHT//2 - panel_h//2
             
@@ -1468,9 +1580,10 @@ def main():
             pygame.draw.rect(screen, COLOR_WHITE, (panel_x, panel_y, panel_w, panel_h), 2)
             
             skor_txt = font_menu.render(f"SKOR AKHIR : {manager.score}", True, COLOR_WHITE)
-            sec = manager.state_timer // 1000
-            ms = manager.state_timer % 1000
-            waktu_txt = font_menu.render(f"WAKTU      : {sec:02d}:{ms:03d}", True, COLOR_WHITE)
+            total_sec = total_play_time_ms // 1000
+            total_min = total_sec // 60
+            sisa_sec  = total_sec % 60
+            waktu_txt = font_menu.render(f"WAKTU      : {total_min:02d}:{sisa_sec:02d}", True, COLOR_WHITE)
             
             screen.blit(skor_txt, (panel_x + 20, panel_y + 15))
             screen.blit(waktu_txt, (panel_x + 20, panel_y + 45))
