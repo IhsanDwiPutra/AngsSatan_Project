@@ -253,9 +253,13 @@ def main():
     input_active = None    
     input_text = ""
     rect_bgm_input = pygame.Rect(545, 192, 50, 30) 
-    rect_sfx_input = pygame.Rect(545, 252, 50, 30) 
+    rect_sfx_input = pygame.Rect(545, 252, 50, 30)
+    
+    # Variabel Index Navigasi (Untuk Sinkronisasi Keyboard & Mouse)
+    tutorial_btn_index = 1 # 0: Kembali, 1: Lanjut
+    memorize_btn_index = 1 # 0: Kembali, 1: Lanjut
 
-    is_running = True
+    is_running = True 
 
     while is_running:
         delta_time = clock.get_time()
@@ -321,6 +325,7 @@ def main():
         elif manager.current_state == 'SETTINGS_MENU': active_buttons = [btn_bgm_slider, btn_sfx_slider, btn_fs_toggle, btn_settings_kembali]
         elif manager.current_state == 'CREDIT': active_buttons = [btn_credit_kembali]
         elif manager.current_state == 'MODE_SELECT': active_buttons = list(btn_modes.values()) + [btn_mode_kembali]
+        elif manager.current_state == 'TUTORIAL': active_buttons = [btn_tut_kembali, btn_tut_lanjut]
         elif manager.current_state == 'MEMORIZE': active_buttons = [btn_mem_lanjut, btn_mem_kembali] # Incision!
         elif manager.current_state == 'PLAY': active_buttons = [btn_game_merah, btn_game_biru, btn_game_kuning, btn_game_hijau, btn_game_pop, btn_game_validate, btn_game_menyerah, btn_game_jeda]
         elif manager.current_state == 'CONFIRM': active_buttons = [btn_confirm_ya, btn_confirm_tidak]
@@ -345,10 +350,14 @@ def main():
             for idx, btn in enumerate(list(btn_modes.values())):
                 if btn.is_hovered: manager.mode_index = idx
             if btn_mode_kembali.is_hovered: manager.mode_index = len(manager.modes_list)
+        # --- SINKRONISASI INDEX MOUSE KONSISTEN ---
+        elif manager.current_state == 'TUTORIAL':
+            for idx, btn in enumerate([btn_tut_kembali, btn_tut_lanjut]):
+                if btn.is_hovered: tutorial_btn_index = idx
         elif manager.current_state == 'MEMORIZE':
-            # Sinkronisasi hover keyboard (ENTER/ESC) per image
-            if btn_mem_lanjut.is_hovered: manager.current_state = 'MEMORIZE'; btn_mem_lanjut.is_hovered=True; btn_mem_kembali.is_hovered=False
-            elif btn_mem_kembali.is_hovered: manager.current_state = 'MEMORIZE'; btn_mem_kembali.is_hovered=True; btn_mem_lanjut.is_hovered=False
+            for idx, btn in enumerate([btn_mem_kembali, btn_mem_lanjut]):
+                if btn.is_hovered: memorize_btn_index = idx
+        # ------------------------------------------
         elif manager.current_state == 'CONFIRM':
             if btn_confirm_ya.is_hovered: manager.confirm_index = 0
             elif btn_confirm_tidak.is_hovered: manager.confirm_index = 1
@@ -591,10 +600,14 @@ def main():
                     if event.key in [pygame.K_RETURN, pygame.K_ESCAPE]: play_click(); manager.current_state = 'MAIN_MENU'
                 
                 elif manager.current_state == 'TUTORIAL':
-                    if event.key == pygame.K_ESCAPE: 
+                    # Logika Panah Kiri dan Kanan Terpusat
+                    if event.key == pygame.K_LEFT: tutorial_btn_index = 0; play_hover()
+                    elif event.key == pygame.K_RIGHT: tutorial_btn_index = 1; play_hover()
+                    # Eksekusi tombol berdasarkan tombol mana yang sedang 'Stand Out'
+                    elif event.key == pygame.K_ESCAPE or (event.key == pygame.K_RETURN and tutorial_btn_index == 0): 
                         play_click()
                         manager.current_state = 'MODE_SELECT'
-                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE]: 
+                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE] and tutorial_btn_index == 1: 
                         play_click()
                         manager.current_state = 'LOADING'
                         loading_timer = 0
@@ -621,16 +634,15 @@ def main():
                                 manager.current_state = 'TUTORIAL'
                                 manager.tutorial_step = 0
                                 
-                # === S4 MEMORIZE KEYS (KEYBOARD) ===
                 elif manager.current_state == 'MEMORIZE':
-                    if event.key == pygame.K_ESCAPE: 
-                        # ESCituharus Kembali pada PEMILIHAN MODE
+                    # Logika Kiri Kanan Terpusat
+                    if event.key == pygame.K_LEFT: memorize_btn_index = 0; play_hover()
+                    elif event.key == pygame.K_RIGHT: memorize_btn_index = 1; play_hover()
+                    elif event.key == pygame.K_ESCAPE or (event.key == pygame.K_RETURN and memorize_btn_index == 0): 
                         manager.current_state = 'MODE_SELECT'
                         play_click()
-                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE]:
-                        # Speedrun! Loncat ke fase gameplay
+                    elif event.key in [pygame.K_RETURN, pygame.K_SPACE] and memorize_btn_index == 1:
                         manager.current_state = 'PLAY'
-                        # manager.generate_new_level() -> HAPUS INI JIKA ADA! 
                         manager.state_timer = manager.play_duration 
                         manager.indicator_light = True
                         play_click()
@@ -1071,9 +1083,17 @@ def main():
                 d_txt = font_small.render(desc, True, COLOR_WHITE)
                 screen.blit(d_txt, (right_panel.x + 140, cy + 8))
 
-            # Render Tombol Bawah (Kembali & Lanjut)
-            btn_tut_kembali.current_color = (180, 60, 60) if btn_tut_kembali.is_hovered else (40, 45, 60)
-            btn_tut_lanjut.current_color = (60, 180, 80) if btn_tut_lanjut.is_hovered else (40, 45, 60)
+            # --- RENOVASI VISUAL STAND OUT TUTORIAL ---
+            btn_tut_kembali.current_color = (180, 60, 60) if tutorial_btn_index == 0 else (40, 45, 60)
+            btn_tut_lanjut.current_color = (60, 180, 80) if tutorial_btn_index == 1 else (40, 45, 60)
+
+            # Efek Stand Out: Outline tebal dan Panah Retro!
+            if tutorial_btn_index == 1:
+                pygame.draw.rect(screen, COLOR_GREEN, (btn_tut_lanjut.rect.x - 2, btn_tut_lanjut.rect.y - 2, btn_tut_lanjut.rect.width + 4, btn_tut_lanjut.rect.height + 4), 2)
+                screen.blit(font_menu.render(">", True, COLOR_GREEN), (btn_tut_lanjut.rect.x - 25, btn_tut_lanjut.rect.y + 10))
+            elif tutorial_btn_index == 0:
+                pygame.draw.rect(screen, COLOR_RED, (btn_tut_kembali.rect.x - 2, btn_tut_kembali.rect.y - 2, btn_tut_kembali.rect.width + 4, btn_tut_kembali.rect.height + 4), 2)
+                screen.blit(font_menu.render(">", True, COLOR_RED), (btn_tut_kembali.rect.x - 25, btn_tut_kembali.rect.y + 10))
 
             btn_tut_kembali.draw(screen)
             pygame.draw.rect(screen, COLOR_WHITE, btn_tut_kembali.rect, 1)
@@ -1229,19 +1249,19 @@ def main():
             screen.blit(t_hafalkan, (SCREEN_WIDTH//2 - t_hafalkan.get_width()//2, panel_y + 15))
             screen.blit(t_will_vanish, (SCREEN_WIDTH//2 - t_will_vanish.get_width()//2, panel_y + 45))
 
-            # --- 6. BAGIAN BAWAH (TOMBOL KEMBALI & LANJUT) ---
-            btn_mem_kembali.current_color = (180, 60, 60) if btn_mem_kembali.is_hovered else (40, 45, 60)
-            btn_mem_lanjut.current_color = (60, 180, 80) if btn_mem_lanjut.is_hovered else (40, 45, 60)
+            # --- BAGIAN BAWAH (TOMBOL KEMBALI & LANJUT) Dinamis ---
+            btn_mem_kembali.current_color = (180, 60, 60) if memorize_btn_index == 0 else (40, 45, 60)
+            btn_mem_lanjut.current_color = (60, 180, 80) if memorize_btn_index == 1 else (40, 45, 60)
             
-            if btn_mem_lanjut.is_hovered:
+            if memorize_btn_index == 1:
+                pygame.draw.rect(screen, COLOR_GREEN, (btn_mem_lanjut.rect.x - 2, btn_mem_lanjut.rect.y - 2, btn_mem_lanjut.rect.width + 4, btn_mem_lanjut.rect.height + 4), 2)
                 screen.blit(font_menu.render(">", True, COLOR_GREEN), (btn_mem_lanjut.rect.x - 25, btn_mem_lanjut.rect.y + 10))
-            elif btn_mem_kembali.is_hovered:
+            elif memorize_btn_index == 0:
+                pygame.draw.rect(screen, COLOR_RED, (btn_mem_kembali.rect.x - 2, btn_mem_kembali.rect.y - 2, btn_mem_kembali.rect.width + 4, btn_mem_kembali.rect.height + 4), 2)
                 screen.blit(font_menu.render(">", True, COLOR_RED), (btn_mem_kembali.rect.x - 25, btn_mem_kembali.rect.y + 10))
 
-            btn_mem_kembali.draw(screen)
-            pygame.draw.rect(screen, COLOR_WHITE, btn_mem_kembali.rect, 1)
-            btn_mem_lanjut.draw(screen)
-            pygame.draw.rect(screen, COLOR_WHITE, btn_mem_lanjut.rect, 1)
+            btn_mem_kembali.draw(screen); pygame.draw.rect(screen, COLOR_WHITE, btn_mem_kembali.rect, 1)
+            btn_mem_lanjut.draw(screen); pygame.draw.rect(screen, COLOR_WHITE, btn_mem_lanjut.rect, 1)
 
         # ==========================================
         # RESTORE LOGIKA PLAY DAN PAUSE ORIGINAL
