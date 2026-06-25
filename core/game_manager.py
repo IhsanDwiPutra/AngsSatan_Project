@@ -50,7 +50,11 @@ class GameManager:
             "yang dapat memicu kejang bagi penderita epilepsi fotosensitif.",
             "",
             "Kebijaksanaan pemain sangat diharapkan. Jika Anda merasa",
-            "tidak nyaman, harap segera hentikan permainan."
+            "tidak nyaman, harap segera hentikan permainan.",
+            "",
+            "",
+            "",
+            "<Tekan Dimana Saja Untuk Skip>"
         ]
 
         self.inner_monologue_text = ""

@@ -12,11 +12,9 @@ from entities.monster import AbyssalMonster
 pygame.init()
 pygame.font.init()
 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SCALED)
-pygame.display.set_caption("angSSatan v1.2.5 - Dynamic Input Settings")
+pygame.display.set_caption("angSSatan v2.1.3")
 clock = pygame.time.Clock()
-
 font_title = pygame.font.SysFont("Consolas", 42, bold=True)
 font_menu = pygame.font.SysFont("Consolas", 24)
 font_tut = pygame.font.SysFont("Consolas", 18)
@@ -417,7 +415,7 @@ def main():
                     if btn_menu_options[0].is_clicked(event, mouse_pos): manager.current_state = 'MODE_SELECT'; clicked = True
                     elif btn_menu_options[1].is_clicked(event, mouse_pos): manager.previous_state = manager.current_state; manager.current_state = 'SETTINGS_MENU'; clicked = True
                     elif btn_menu_options[2].is_clicked(event, mouse_pos): manager.current_state = 'CREDIT'; clicked = True
-                    elif btn_menu_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_APP'); clicked = True
+                    elif btn_menu_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR?'); clicked = True
                     if clicked: play_click()
                     
                 elif manager.current_state == 'SETTINGS_MENU':
@@ -525,11 +523,11 @@ def main():
                     if btn_confirm_ya.is_clicked(event, mouse_pos):
                         if manager.confirm_type == 'MENYERAH': 
                             manager.trigger_game_over()
-                        elif manager.confirm_type == 'KELUAR_MENU':
+                        elif manager.confirm_type == 'KELUAR MENU?':
                             manager.reset_to_menu()
                             player_stack.clear_stack()
                             total_play_time_ms = 0 
-                        elif manager.confirm_type == 'KELUAR_APP': 
+                        elif manager.confirm_type == 'KELUAR?': 
                             is_running = False
                     elif btn_confirm_tidak.is_clicked(event, mouse_pos): manager.cancel_confirm()
                     else: clicked = False
@@ -555,7 +553,7 @@ def main():
                     if btn_pause_options[0].is_clicked(event, mouse_pos): manager.current_state = play_return_state
                     elif btn_pause_options[1].is_clicked(event, mouse_pos): manager.restart_level(); player_stack.clear_stack(); total_play_time_ms = 0
                     elif btn_pause_options[2].is_clicked(event, mouse_pos): manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
-                    elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR_MENU')
+                    elif btn_pause_options[3].is_clicked(event, mouse_pos): manager.trigger_confirm('KELUAR MENU?')
                     else: clicked = False
                     if clicked: play_click()
 
@@ -586,7 +584,7 @@ def main():
                     if event.key in [pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE]: manager.skip_intro()
                 
                 elif manager.current_state == 'MAIN_MENU':
-                    if event.key == pygame.K_ESCAPE: manager.trigger_confirm('KELUAR_APP'); play_click()
+                    if event.key == pygame.K_ESCAPE: manager.trigger_confirm('KELUAR?'); play_click()
                     elif event.key == pygame.K_DOWN:   manager.menu_index = (manager.menu_index + 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_UP:   manager.menu_index = (manager.menu_index - 1) % len(manager.menu_options); play_hover()
                     elif event.key == pygame.K_RETURN:
@@ -594,7 +592,7 @@ def main():
                         if manager.menu_index == 0:   manager.current_state = 'MODE_SELECT'
                         elif manager.menu_index == 1: manager.previous_state = manager.current_state; manager.current_state = 'SETTINGS_MENU'
                         elif manager.menu_index == 2: manager.current_state = 'CREDIT'
-                        elif manager.menu_index == 3: manager.trigger_confirm('KELUAR_APP')
+                        elif manager.menu_index == 3: manager.trigger_confirm('KELUAR?')
                 
                 elif manager.current_state == 'SETTINGS_MENU':
                     # Logika Pemrosesan Angka Input Langsung
@@ -708,7 +706,7 @@ def main():
                     elif event.key == pygame.K_g: player_stack.push("Hijau"); play_push()
                     elif event.key == pygame.K_BACKSPACE: player_stack.pop(); play_pop()
                     elif event.key == pygame.K_m: manager.trigger_confirm('MENYERAH'); play_click()
-                    elif event.key == pygame.K_q: manager.trigger_confirm('KELUAR_MENU'); play_click()
+                    elif event.key == pygame.K_q: manager.trigger_confirm('KELUAR MENU?'); play_click()
                     
                   # --- LOGIKA NAVIGASI GRID 3 KOLOM ---
                     # Kiri(0): MERAH/BIRU/KUNING/HIJAU/POP  Tengah(1): VALIDASI  Kanan(2): MENYERAH/JEDA
@@ -760,10 +758,10 @@ def main():
                         play_click()
                         if manager.confirm_type == 'MENYERAH': 
                             manager.trigger_game_over()
-                        elif manager.confirm_type == 'KELUAR_MENU':
+                        elif manager.confirm_type == 'KELUAR MENU?':
                             manager.reset_to_menu()
                             player_stack.clear_stack() 
-                        elif manager.confirm_type == 'KELUAR_APP': 
+                        elif manager.confirm_type == 'KELUAR?': 
                             is_running = False
                     elif event.key == pygame.K_n or (event.key == pygame.K_RETURN and manager.confirm_index == 1):
                         play_click(); manager.cancel_confirm()
@@ -794,7 +792,7 @@ def main():
                         if manager.pause_index == 0: manager.current_state = play_return_state
                         elif manager.pause_index == 1: manager.restart_level(); player_stack.clear_stack(); total_play_time_ms = 0
                         elif manager.pause_index == 2: manager.previous_state = 'PAUSE'; manager.current_state = 'SETTINGS_MENU'
-                        elif manager.pause_index == 3: manager.trigger_confirm('KELUAR_MENU') 
+                        elif manager.pause_index == 3: manager.trigger_confirm('KELUAR MENU?') 
 
         # ---- LOGIKA TAHAN-TEKAN SLIDER KEYBOARD ----
         if held_key_slider and manager.current_state == 'SETTINGS_MENU' and not input_active:
@@ -911,14 +909,14 @@ def main():
             if menu_logo_image:
                 screen.blit(menu_logo_image, (440, 60))
             else:
-                title_text = font_title.render("angSSatan v1.2", True, COLOR_RED)
+                title_text = font_title.render("angSSatan v2.1.3", True, COLOR_RED)
                 screen.blit(title_text, (480, 100))
                 
             for idx, btn in enumerate(btn_menu_options):
                 if idx == manager.menu_index: btn.current_color = (60, 70, 100)
                 btn.draw(screen)
 
-            version_text = font_tut.render("angSSatan v1.2.5", True, (130, 130, 140))
+            version_text = font_tut.render("angSSatan v2.1.3", True, (130, 130, 140))
             version_x = SCREEN_WIDTH - version_text.get_width() - 15
             version_y = SCREEN_HEIGHT - version_text.get_height() - 15
             screen.blit(version_text, (version_x, version_y))
